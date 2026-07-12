@@ -1,7 +1,11 @@
 import { useState } from 'react'
-import { DEFAULT_SETTINGS, updateSettings, useSettings } from '../db/settings'
+import { DEFAULT_SETTINGS, FONT_STACKS, updateSettings, useSettings } from '../db/settings'
 
 const THEMES = ['system', 'light', 'dark'] as const
+const FONTS: Array<[string, string]> = [
+  ['serif', 'Serif'],
+  ['sans', 'Sans'],
+]
 
 export default function Settings() {
   const settings = useSettings()
@@ -86,6 +90,21 @@ export default function Settings() {
                   onClick={() => updateSettings({ theme: t })}
                 >
                   {t[0].toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <label>Reading font</label>
+            <div className="seg">
+              {FONTS.map(([key, name]) => (
+                <button
+                  key={key}
+                  className={settings.fontFamily === key ? 'active' : ''}
+                  style={{ fontFamily: FONT_STACKS[key] }}
+                  onClick={() => updateSettings({ fontFamily: key })}
+                >
+                  {name}
                 </button>
               ))}
             </div>

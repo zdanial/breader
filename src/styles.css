@@ -403,6 +403,15 @@ p {
   flex-direction: column;
   gap: 8px;
   align-items: flex-start;
+  max-height: 45dvh;
+  overflow-y: auto;
+}
+
+.popover-explain {
+  font-size: 0.88rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
 }
 
 /* ── settings ───────────────────────────────────────────────────────────── */

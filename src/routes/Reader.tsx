@@ -2,15 +2,16 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { db } from '../db/schema'
 import { updateSettings, useSettings } from '../db/settings'
+import { FONT_STACKS } from '../db/settings'
 import { SelectionPopover } from '../reader/SelectionPopover'
-import { SentenceText } from '../reader/SentenceText'
+import { SentenceText, sliceTokens, useTokens } from '../reader/SentenceText'
 import { useSwipe } from '../reader/useGestures'
 import { useOrientation } from '../reader/useOrientation'
 import { useSentenceTranslation } from '../reader/useSentenceTranslation'
 
 interface Selection {
-  word: string
-  index: number
+  start: number // token indices, inclusive
+  end: number
   rect: DOMRect
 }
 
@@ -62,6 +63,22 @@ export default function Reader({ bookId }: { bookId: string }) {
   const orientation = useOrientation()
   const pair = useSentenceTranslation(book, sentence, settings, orientation === 'landscape')
 
+  const tokens = useTokens(sentence?.text, book?.targetLang ?? 'en')
+
+  // tap 1 = word · tap on a second word = span between them · re-tap = dismiss
+  const onWordTap = useCallback((_word: string, index: number, rect: DOMRect) => {
+    setSelection((sel) => {
+      if (!sel) return { start: index, end: index, rect }
+      if (sel.start === sel.end) {
+        if (index === sel.start) return null
+        return { start: Math.min(sel.start, index), end: Math.max(sel.start, index), rect }
+      }
+      return { start: index, end: index, rect }
+    })
+  }, [])
+
+  const selectionText = selection ? sliceTokens(tokens, selection.start, selection.end) : ''
+
   // keyboard navigation for desktop testing
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -87,7 +104,10 @@ export default function Reader({ bookId }: { bookId: string }) {
   return (
     <div
       className="page reader"
-      style={{ ['--font-scale' as string]: scale }}
+      style={{
+        ['--font-scale' as string]: scale,
+        ['--font-reading' as string]: FONT_STACKS[settings.fontFamily] ?? FONT_STACKS.serif,
+      }}
       {...swipe}
     >
       <header className="topbar">
@@ -121,13 +141,11 @@ export default function Reader({ bookId }: { bookId: string }) {
         <main className="sentence-area" ref={contentRef}>
           {sentence && (
             <SentenceText
-              text={sentence.text}
+              tokens={tokens}
               lang={book.targetLang}
               dir={book.dir}
-              selectedIndex={selection?.index}
-              onWordTap={(word, index, rect) =>
-                setSelection((sel) => (sel?.index === index ? null : { word, index, rect }))
-              }
+              selectedRange={selection}
+              onWordTap={onWordTap}
             />
           )}
         </main>
@@ -136,13 +154,11 @@ export default function Reader({ bookId }: { bookId: string }) {
           <div className="pane">
             {sentence && (
               <SentenceText
-                text={sentence.text}
+                tokens={tokens}
                 lang={book.targetLang}
                 dir={book.dir}
-                selectedIndex={selection?.index}
-                onWordTap={(word, index, rect) =>
-                  setSelection((sel) => (sel?.index === index ? null : { word, index, rect }))
-                }
+                selectedRange={selection}
+                onWordTap={onWordTap}
               />
             )}
           </div>
@@ -209,13 +225,15 @@ export default function Reader({ bookId }: { bookId: string }) {
         </div>
       )}
 
-      {selection && sentence && (
+      {selection && sentence && selectionText && (
         <SelectionPopover
-          word={selection.word}
+          text={selectionText}
+          kind={selection.start === selection.end ? 'word' : 'phrase'}
           sentence={sentence.text}
           targetLang={book.targetLang}
           model={settings.model}
           apiKey={settings.openaiKey}
+          bookId={book.id}
           anchor={selection.rect}
           onClose={() => setSelection(null)}
         />

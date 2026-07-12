@@ -81,6 +81,11 @@ export function SelectionPopover({
                   Check key
                 </a>
               </>
+            ) : status.code === 'quota' ? (
+              <span className="muted">
+                Your OpenAI account is out of credits — add funds at
+                platform.openai.com/billing.
+              </span>
             ) : (
               <>
                 <span className="muted">

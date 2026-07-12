@@ -24,7 +24,8 @@ export default function App() {
 
   switch (route.name) {
     case 'reader':
-      return <Reader bookId={route.bookId} />
+      // key forces a fresh Reader per book so position state never leaks across books
+      return <Reader key={route.bookId} bookId={route.bookId} />
     case 'settings':
       return <Settings />
     default:

@@ -21,9 +21,12 @@ export default function Reader({ bookId }: { bookId: string }) {
   // moving to another sentence dismisses any open gloss
   useEffect(() => setSelection(null), [pos])
 
-  // initialize position from the saved resume point once the book loads
+  // initialize position from the saved resume point once the book loads,
+  // clamped in case a stale/corrupt value was persisted
   useEffect(() => {
-    if (book && pos === null) setPos(book.positionIndex)
+    if (book && pos === null) {
+      setPos(Math.min(Math.max(0, book.positionIndex), book.sentenceCount - 1))
+    }
   }, [book, pos])
 
   const sentence = useLiveQuery(

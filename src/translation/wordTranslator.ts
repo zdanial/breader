@@ -12,12 +12,25 @@ export interface WordLookup {
   apiKey?: string
 }
 
+// One request per cache key at a time: repeat taps (and React StrictMode's
+// double-fired dev effects) share the in-flight promise instead of re-calling OpenAI.
+const inFlight = new Map<string, Promise<string>>()
+
 /** Contextual gloss for a tapped word. Cached permanently on-device. */
 export async function translateWord(req: WordLookup): Promise<string> {
   const key = await cacheKey(['word', req.targetLang, 'en', req.model, req.word, req.sentence])
   const hit = await getCached(key)
   if (hit) return hit.result
 
+  const pending = inFlight.get(key)
+  if (pending) return pending
+
+  const promise = requestGloss(key, req).finally(() => inFlight.delete(key))
+  inFlight.set(key, promise)
+  return promise
+}
+
+async function requestGloss(key: string, req: WordLookup): Promise<string> {
   const language = langName(req.targetLang)
   const result = await chatComplete({
     apiKey: req.apiKey,

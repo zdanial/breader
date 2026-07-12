@@ -2,13 +2,24 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { db } from '../db/schema'
 import { updateSettings, useSettings } from '../db/settings'
+import { SelectionPopover } from '../reader/SelectionPopover'
 import { SentenceText } from '../reader/SentenceText'
 import { useSwipe } from '../reader/useGestures'
+
+interface Selection {
+  word: string
+  index: number
+  rect: DOMRect
+}
 
 export default function Reader({ bookId }: { bookId: string }) {
   const book = useLiveQuery(() => db.books.get(bookId), [bookId])
   const settings = useSettings()
   const [pos, setPos] = useState<number | null>(null)
+  const [selection, setSelection] = useState<Selection | null>(null)
+
+  // moving to another sentence dismisses any open gloss
+  useEffect(() => setSelection(null), [pos])
 
   // initialize position from the saved resume point once the book loads
   useEffect(() => {
@@ -87,8 +98,30 @@ export default function Reader({ bookId }: { bookId: string }) {
       </header>
 
       <main className="sentence-area" ref={contentRef}>
-        {sentence && <SentenceText text={sentence.text} lang={book.targetLang} dir={book.dir} />}
+        {sentence && (
+          <SentenceText
+            text={sentence.text}
+            lang={book.targetLang}
+            dir={book.dir}
+            selectedIndex={selection?.index}
+            onWordTap={(word, index, rect) =>
+              setSelection((sel) => (sel?.index === index ? null : { word, index, rect }))
+            }
+          />
+        )}
       </main>
+
+      {selection && sentence && (
+        <SelectionPopover
+          word={selection.word}
+          sentence={sentence.text}
+          targetLang={book.targetLang}
+          model={settings.model}
+          apiKey={settings.openaiKey}
+          anchor={selection.rect}
+          onClose={() => setSelection(null)}
+        />
+      )}
 
       <footer className="reader-footer">
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>

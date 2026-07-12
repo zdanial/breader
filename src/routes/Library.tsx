@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useRef, useState } from 'react'
 import { db } from '../db/schema'
+import { useSettings } from '../db/settings'
 import { importBook } from '../parsing/importBook'
 import { acceptedExtensions } from '../parsing/registry'
 import { navigate } from '../router'
@@ -18,6 +19,7 @@ const langName = (code: string) =>
 
 export default function Library() {
   const books = useLiveQuery(() => db.books.orderBy('createdAt').reverse().toArray(), [])
+  const settings = useSettings()
   const fileRef = useRef<HTMLInputElement>(null)
   const [pending, setPending] = useState<File | null>(null)
   const [lang, setLang] = useState('de')
@@ -49,6 +51,11 @@ export default function Library() {
       </header>
 
       <main className="shelf">
+        {books && !settings.openaiKey && (
+          <p className="note" style={{ textAlign: 'center' }}>
+            Tip: add your OpenAI key in <a href="#/settings">Settings</a> to enable tap-to-translate.
+          </p>
+        )}
         {books?.length === 0 && (
           <p className="empty">No books yet — import one to start reading.</p>
         )}

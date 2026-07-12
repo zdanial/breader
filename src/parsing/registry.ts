@@ -1,7 +1,8 @@
+import { epubParser } from './epubParser'
 import type { BookParser } from './types'
 import { txtParser } from './txtParser'
 
-const parsers: BookParser[] = [txtParser] // epubParser lands in Slice 4, pdf post-MVP
+const parsers: BookParser[] = [txtParser, epubParser] // pdfParser lands post-MVP
 
 export const acceptedExtensions = (): string =>
   parsers.flatMap((p) => p.extensions).map((e) => `.${e}`).join(',')

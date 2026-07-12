@@ -19,6 +19,12 @@ export default function Reader({ bookId }: { bookId: string }) {
   const settings = useSettings()
   const [pos, setPos] = useState<number | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [showToc, setShowToc] = useState(false)
+
+  const chapters = useLiveQuery(
+    () => db.chapters.where('bookId').equals(bookId).sortBy('index'),
+    [bookId],
+  )
 
   // moving to another sentence dismisses any open gloss
   useEffect(() => setSelection(null), [pos])
@@ -88,7 +94,13 @@ export default function Reader({ bookId }: { bookId: string }) {
         <a className="icon-btn" href="#/" aria-label="Back to library">
           ‹
         </a>
-        <span className="reader-title">{book.title}</span>
+        {chapters && chapters.length > 1 ? (
+          <button className="reader-title as-button" onClick={() => setShowToc(true)}>
+            {book.title} ▾
+          </button>
+        ) : (
+          <span className="reader-title">{book.title}</span>
+        )}
         <button
           className="icon-btn"
           aria-label="Smaller text"
@@ -166,6 +178,35 @@ export default function Reader({ bookId }: { bookId: string }) {
             )}
           </div>
         </main>
+      )}
+
+      {showToc && chapters && (
+        <div className="modal-overlay" onClick={() => setShowToc(false)}>
+          <div className="modal toc" onClick={(e) => e.stopPropagation()}>
+            <h2>Chapters</h2>
+            <div className="toc-list">
+              {chapters.map((ch) => {
+                const isCurrent =
+                  pos != null &&
+                  pos >= ch.startSentenceIndex &&
+                  (chapters[ch.index + 1] === undefined ||
+                    pos < chapters[ch.index + 1].startSentenceIndex)
+                return (
+                  <button
+                    key={ch.index}
+                    className={isCurrent ? 'toc-item current' : 'toc-item'}
+                    onClick={() => {
+                      setPos(ch.startSentenceIndex)
+                      setShowToc(false)
+                    }}
+                  >
+                    {ch.title}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
       )}
 
       {selection && sentence && (

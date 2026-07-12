@@ -2,7 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useRef, useState } from 'react'
 import { db } from '../db/schema'
 import { useSettings } from '../db/settings'
-import { importBook } from '../parsing/importBook'
+import { commitImport, prepareImport, type ImportPreview } from '../parsing/importBook'
 import { acceptedExtensions } from '../parsing/registry'
 import { navigate } from '../router'
 
@@ -21,18 +21,37 @@ export default function Library() {
   const books = useLiveQuery(() => db.books.orderBy('createdAt').reverse().toArray(), [])
   const settings = useSettings()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [pending, setPending] = useState<File | null>(null)
+  const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [title, setTitle] = useState('')
   const [lang, setLang] = useState('de')
+  const [detected, setDetected] = useState(false)
+  const [parsing, setParsing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  async function onFilePicked(file: File) {
+    setParsing(true)
+    setError(null)
+    try {
+      const p = await prepareImport(file)
+      setPreview(p)
+      setTitle(p.parsed.title)
+      setLang(p.suggestedLang && LANGS.some(([c]) => c === p.suggestedLang) ? p.suggestedLang : 'de')
+      setDetected(!!p.suggestedLang)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not read file')
+    } finally {
+      setParsing(false)
+    }
+  }
+
   async function confirmImport() {
-    if (!pending || busy) return
+    if (!preview || busy) return
     setBusy(true)
     setError(null)
     try {
-      const bookId = await importBook(pending, lang)
-      setPending(null)
+      const bookId = await commitImport(preview, { title, targetLang: lang })
+      setPreview(null)
       navigate(`/book/${bookId}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import failed')
@@ -59,11 +78,14 @@ export default function Library() {
         {books?.length === 0 && (
           <p className="empty">No books yet — import one to start reading.</p>
         )}
+        {error && !preview && <p className="error-text" style={{ textAlign: 'center' }}>{error}</p>}
         {books?.map((book) => (
           <button key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
             <span className="book-title">{book.title}</span>
             <span className="book-meta">
-              {langName(book.targetLang)} · {book.sentenceCount.toLocaleString()} sentences
+              {langName(book.targetLang)}
+              {book.author ? ` · ${book.author}` : ''} · {book.sentenceCount.toLocaleString()}{' '}
+              sentences
             </span>
             <span className="bar">
               <span
@@ -89,23 +111,27 @@ export default function Library() {
         hidden
         onChange={(e) => {
           const file = e.target.files?.[0]
-          if (file) {
-            setPending(file)
-            setError(null)
-          }
+          if (file) void onFilePicked(file)
           e.target.value = '' // allow re-picking the same file
         }}
       />
-      <button className="fab" onClick={() => fileRef.current?.click()}>
-        + Import book
+      <button className="fab" onClick={() => fileRef.current?.click()} disabled={parsing}>
+        {parsing ? 'Reading…' : '+ Import book'}
       </button>
 
-      {pending && (
-        <div className="modal-overlay" onClick={() => !busy && setPending(null)}>
+      {preview && (
+        <div className="modal-overlay" onClick={() => !busy && setPreview(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Import “{pending.name}”</h2>
+            <h2>Import book</h2>
             <div className="field">
-              <label>Book language (what you’re learning)</label>
+              <label>Title</label>
+              <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
+            </div>
+            <div className="field">
+              <label>
+                Book language (what you’re learning)
+                {detected && <span> — detected</span>}
+              </label>
               <select value={lang} onChange={(e) => setLang(e.target.value)}>
                 {LANGS.map(([code, name]) => (
                   <option key={code} value={code}>
@@ -114,9 +140,14 @@ export default function Library() {
                 ))}
               </select>
             </div>
+            <p className="note">
+              {preview.parsed.chapters.length.toLocaleString()} chapter
+              {preview.parsed.chapters.length === 1 ? '' : 's'}
+              {preview.parsed.author ? ` · ${preview.parsed.author}` : ''}
+            </p>
             {error && <p className="error-text">{error}</p>}
             <div className="row">
-              <button className="btn secondary" onClick={() => setPending(null)} disabled={busy}>
+              <button className="btn secondary" onClick={() => setPreview(null)} disabled={busy}>
                 Cancel
               </button>
               <button className="btn" onClick={confirmImport} disabled={busy}>

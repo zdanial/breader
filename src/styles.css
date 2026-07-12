@@ -264,6 +264,37 @@ p {
   text-align: center;
 }
 
+.reader-title.as-button {
+  background: none;
+  border: none;
+  padding: 6px 0;
+  cursor: pointer;
+}
+
+.modal.toc {
+  max-height: 70dvh;
+}
+
+.toc-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.toc-item {
+  text-align: left;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 4px;
+  cursor: pointer;
+}
+
+.toc-item.current {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .reader-progress {
   font-size: 0.8rem;
   color: var(--muted);

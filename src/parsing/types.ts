@@ -9,6 +9,7 @@ export interface ParsedChapter {
 export interface ParsedDoc {
   title: string
   author?: string
+  language?: string // from format metadata (e.g. EPUB dc:language), if present
   chapters: ParsedChapter[]
 }
 

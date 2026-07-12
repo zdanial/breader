@@ -1,5 +1,10 @@
-import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useEffect, useState } from 'react'
+import { db } from '../db/schema'
 import { DEFAULT_SETTINGS, FONT_STACKS, updateSettings, useSettings } from '../db/settings'
+
+const formatBytes = (n: number) =>
+  n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1e3)} KB`
 
 const THEMES = ['system', 'light', 'dark'] as const
 const FONTS: Array<[string, string]> = [
@@ -14,6 +19,22 @@ export default function Settings() {
   const [modelDraft, setModelDraft] = useState<string | null>(null)
   const [showKey, setShowKey] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  const [storage, setStorage] = useState<{
+    usage?: number
+    quota?: number
+    persisted?: boolean
+  } | null>(null)
+  const translationCount = useLiveQuery(() => db.translations.count(), [])
+
+  useEffect(() => {
+    Promise.all([
+      navigator.storage?.estimate?.() ?? Promise.resolve({}),
+      navigator.storage?.persisted?.() ?? Promise.resolve(undefined),
+    ]).then(([est, persisted]) =>
+      setStorage({ usage: est.usage, quota: est.quota, persisted }),
+    )
+  }, [])
 
   const keyValue = keyDraft ?? settings.openaiKey ?? ''
   const modelValue = modelDraft ?? settings.model
@@ -131,6 +152,22 @@ export default function Settings() {
               </button>
             </div>
           </div>
+        </section>
+
+        <section className="section">
+          <h2>Storage</h2>
+          <p className="note">
+            {storage?.usage != null && storage?.quota != null
+              ? `Using ${formatBytes(storage.usage)} of ${formatBytes(storage.quota)} available.`
+              : 'Storage usage unavailable.'}
+            {translationCount != null &&
+              ` ${translationCount.toLocaleString()} cached translations.`}
+          </p>
+          <p className="note">
+            {storage?.persisted
+              ? 'Persistent storage granted — your books won’t be evicted.'
+              : 'Persistent storage not yet granted; the browser may reclaim space under pressure. It’s usually granted automatically once the app is installed to your home screen.'}
+          </p>
         </section>
       </main>
     </div>

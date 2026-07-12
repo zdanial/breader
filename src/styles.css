@@ -127,6 +127,16 @@ p {
   border: 1px solid var(--border);
 }
 
+.btn.danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.book-menu {
+  margin: -6px -10px -6px 0;
+  color: var(--muted);
+}
+
 .error-text {
   color: var(--danger);
   font-size: 0.85rem;

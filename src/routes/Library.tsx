@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useRef, useState } from 'react'
-import { db } from '../db/schema'
+import { clearBookTranslations, deleteBook } from '../db/books'
+import { db, type Book } from '../db/schema'
 import { useSettings } from '../db/settings'
 import { commitImport, prepareImport, type ImportPreview } from '../parsing/importBook'
 import { acceptedExtensions } from '../parsing/registry'
@@ -28,6 +29,15 @@ export default function Library() {
   const [parsing, setParsing] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [menuBook, setMenuBook] = useState<Book | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [cleared, setCleared] = useState<number | null>(null)
+
+  function openMenu(book: Book) {
+    setMenuBook(book)
+    setConfirmDelete(false)
+    setCleared(null)
+  }
 
   async function onFilePicked(file: File) {
     setParsing(true)
@@ -81,7 +91,20 @@ export default function Library() {
         {error && !preview && <p className="error-text" style={{ textAlign: 'center' }}>{error}</p>}
         {books?.map((book) => (
           <button key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
-            <span className="book-title">{book.title}</span>
+            <span className="row" style={{ justifyContent: 'space-between' }}>
+              <span className="book-title">{book.title}</span>
+              <span
+                className="icon-btn book-menu"
+                role="button"
+                aria-label={`Options for ${book.title}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  openMenu(book)
+                }}
+              >
+                ⋯
+              </span>
+            </span>
             <span className="book-meta">
               {langName(book.targetLang)}
               {book.author ? ` · ${book.author}` : ''} · {book.sentenceCount.toLocaleString()}{' '}
@@ -118,6 +141,41 @@ export default function Library() {
       <button className="fab" onClick={() => fileRef.current?.click()} disabled={parsing}>
         {parsing ? 'Reading…' : '+ Import book'}
       </button>
+
+      {menuBook && (
+        <div className="modal-overlay" onClick={() => setMenuBook(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>{menuBook.title}</h2>
+            <button
+              className="btn secondary"
+              onClick={async () => {
+                const n = await clearBookTranslations(menuBook.id)
+                setCleared(n)
+              }}
+            >
+              {cleared === null
+                ? 'Clear cached translations'
+                : `Cleared ${cleared.toLocaleString()} translations ✓`}
+            </button>
+            <button
+              className={confirmDelete ? 'btn danger' : 'btn secondary'}
+              onClick={async () => {
+                if (!confirmDelete) {
+                  setConfirmDelete(true)
+                  return
+                }
+                await deleteBook(menuBook.id)
+                setMenuBook(null)
+              }}
+            >
+              {confirmDelete ? 'Tap again to permanently delete' : 'Delete book'}
+            </button>
+            <button className="btn secondary" onClick={() => setMenuBook(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {preview && (
         <div className="modal-overlay" onClick={() => !busy && setPreview(null)}>

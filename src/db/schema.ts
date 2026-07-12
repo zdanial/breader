@@ -77,6 +77,10 @@ class BreaderDB extends Dexie {
       settings: 'id',
       files: 'bookId',
     })
+    // v2: index translations by originating book so a book's cache can be cleared
+    this.version(2).stores({
+      translations: 'key, createdAt, bookId',
+    })
   }
 }
 

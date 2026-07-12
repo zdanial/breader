@@ -33,11 +33,12 @@ export interface Chapter {
 
 export interface Translation {
   key: string // hash(kind + langs + model + sourceText [+ context])
-  kind: 'sentence' | 'word' | 'phrase'
+  kind: 'sentence' | 'word' | 'phrase' | 'explain'
   sourceText: string
   result: string
   context?: string
   model: string
+  bookId?: string // provenance, so a book's cache can be cleared with it
   createdAt: number
 }
 

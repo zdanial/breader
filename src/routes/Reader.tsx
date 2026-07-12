@@ -5,6 +5,8 @@ import { updateSettings, useSettings } from '../db/settings'
 import { SelectionPopover } from '../reader/SelectionPopover'
 import { SentenceText } from '../reader/SentenceText'
 import { useSwipe } from '../reader/useGestures'
+import { useOrientation } from '../reader/useOrientation'
+import { useSentenceTranslation } from '../reader/useSentenceTranslation'
 
 interface Selection {
   word: string
@@ -50,6 +52,9 @@ export default function Reader({ bookId }: { bookId: string }) {
 
   const contentRef = useRef<HTMLElement | null>(null)
   const swipe = useSwipe({ onNext: next, onPrev: prev, scrollRef: contentRef })
+
+  const orientation = useOrientation()
+  const pair = useSentenceTranslation(book, sentence, settings, orientation === 'landscape')
 
   // keyboard navigation for desktop testing
   useEffect(() => {
@@ -100,19 +105,68 @@ export default function Reader({ bookId }: { bookId: string }) {
         </button>
       </header>
 
-      <main className="sentence-area" ref={contentRef}>
-        {sentence && (
-          <SentenceText
-            text={sentence.text}
-            lang={book.targetLang}
-            dir={book.dir}
-            selectedIndex={selection?.index}
-            onWordTap={(word, index, rect) =>
-              setSelection((sel) => (sel?.index === index ? null : { word, index, rect }))
-            }
-          />
-        )}
-      </main>
+      {orientation === 'portrait' ? (
+        <main className="sentence-area" ref={contentRef}>
+          {sentence && (
+            <SentenceText
+              text={sentence.text}
+              lang={book.targetLang}
+              dir={book.dir}
+              selectedIndex={selection?.index}
+              onWordTap={(word, index, rect) =>
+                setSelection((sel) => (sel?.index === index ? null : { word, index, rect }))
+              }
+            />
+          )}
+        </main>
+      ) : (
+        <main className="pair-area" ref={contentRef}>
+          <div className="pane">
+            {sentence && (
+              <SentenceText
+                text={sentence.text}
+                lang={book.targetLang}
+                dir={book.dir}
+                selectedIndex={selection?.index}
+                onWordTap={(word, index, rect) =>
+                  setSelection((sel) => (sel?.index === index ? null : { word, index, rect }))
+                }
+              />
+            )}
+          </div>
+          <div className="pane" dir="ltr">
+            {pair.translation ? (
+              <p className="sentence base-sentence" lang="en">
+                {pair.translation}
+              </p>
+            ) : pair.error ? (
+              <div className="pane-status">
+                {pair.error === 'no-key' ? (
+                  <>
+                    <span className="muted">Add your OpenAI key to translate.</span>
+                    <a className="btn" href="#/settings">
+                      Open Settings
+                    </a>
+                  </>
+                ) : pair.error === 'quota' ? (
+                  <span className="muted">Your OpenAI account is out of credits.</span>
+                ) : (
+                  <>
+                    <span className="muted">
+                      {pair.error === 'offline' ? 'You’re offline.' : 'Translation failed.'}
+                    </span>
+                    <button className="btn" onClick={pair.retry}>
+                      Retry
+                    </button>
+                  </>
+                )}
+              </div>
+            ) : (
+              <p className="sentence base-sentence muted">Translating…</p>
+            )}
+          </div>
+        </main>
+      )}
 
       {selection && sentence && (
         <SelectionPopover

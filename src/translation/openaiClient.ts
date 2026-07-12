@@ -33,6 +33,7 @@ async function requestOnce(opts: {
   system: string
   user: string
   maxTokens?: number
+  json?: boolean
 }): Promise<string> {
   let res: Response
   try {
@@ -50,6 +51,7 @@ async function requestOnce(opts: {
         ],
         temperature: 0.2,
         max_tokens: opts.maxTokens ?? 200,
+        ...(opts.json ? { response_format: { type: 'json_object' } } : {}),
       }),
     })
   } catch {
@@ -85,6 +87,7 @@ export async function chatComplete(opts: {
   system: string
   user: string
   maxTokens?: number
+  json?: boolean
 }): Promise<string> {
   if (!opts.apiKey) throw new TxError('no-key')
   const { apiKey } = opts

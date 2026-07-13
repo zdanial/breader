@@ -18,12 +18,23 @@ export interface Lookup {
 // double-fired dev effects) share the in-flight promise instead of re-calling OpenAI.
 const inFlight = new Map<string, Promise<string>>()
 
+// Bump when a prompt changes shape, so old-format cached answers aren't served.
+const PROMPT_VERSION = 'v2'
+
 async function cachedLookup(
   kind: Translation['kind'],
   req: Lookup,
   run: () => Promise<string>,
 ): Promise<string> {
-  const key = await cacheKey([kind, req.targetLang, 'en', req.model, req.text, req.sentence])
+  const key = await cacheKey([
+    kind,
+    PROMPT_VERSION,
+    req.targetLang,
+    'en',
+    req.model,
+    req.text,
+    req.sentence,
+  ])
   const hit = await getCached(key)
   if (hit) return hit.result
 
@@ -57,7 +68,7 @@ export function translateWord(req: Lookup): Promise<string> {
       model: req.model,
       maxTokens: 120,
       system: `You are a concise bilingual reading assistant helping an English speaker read ${langName(req.targetLang)}.`,
-      user: `Sentence: "${req.sentence}"\n\nWhat does "${req.text}" mean in this sentence? Answer with the English meaning only, in at most one short line. If it is an inflected form, add the base form in parentheses.`,
+      user: `Sentence: "${req.sentence}"\n\nReply with only the English translation of "${req.text}" as used in this sentence — just the translation itself, no quotes, no notes, no extra words.`,
     }),
   )
 }
@@ -70,7 +81,7 @@ export function translatePhrase(req: Lookup): Promise<string> {
       model: req.model,
       maxTokens: 160,
       system: `You are a concise bilingual reading assistant helping an English speaker read ${langName(req.targetLang)}.`,
-      user: `Sentence: "${req.sentence}"\n\nWhat does the phrase "${req.text}" mean in this sentence? Answer with the natural English equivalent only, in at most one short line.`,
+      user: `Sentence: "${req.sentence}"\n\nReply with only the natural English equivalent of the phrase "${req.text}" as used in this sentence — just the translation itself, no quotes, no notes, no extra words.`,
     }),
   )
 }

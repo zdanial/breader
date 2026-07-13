@@ -10,6 +10,7 @@ export interface ParsedDoc {
   title: string
   author?: string
   language?: string // from format metadata (e.g. EPUB dc:language), if present
+  cover?: Blob // extracted cover image, if the format provides one
   chapters: ParsedChapter[]
 }
 

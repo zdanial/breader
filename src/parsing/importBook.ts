@@ -27,7 +27,7 @@ export async function prepareImport(file: File): Promise<ImportPreview> {
 /** Segment and persist a prepared import. Returns the new book id. */
 export async function commitImport(
   preview: ImportPreview,
-  opts: { title: string; targetLang: string },
+  opts: { title: string; targetLang: string; author?: string },
 ): Promise<string> {
   const bookId = crypto.randomUUID()
 
@@ -48,7 +48,7 @@ export async function commitImport(
   const book: Book = {
     id: bookId,
     title: opts.title.trim() || preview.parsed.title,
-    author: preview.parsed.author,
+    author: opts.author?.trim() || preview.parsed.author,
     format: preview.format,
     targetLang: opts.targetLang,
     baseLang: 'en',
@@ -58,13 +58,18 @@ export async function commitImport(
     createdAt: Date.now(),
   }
 
-  await db.transaction('rw', [db.books, db.sentences, db.chapters, db.files], async () => {
-    await db.books.add(book)
-    await db.sentences.bulkAdd(sentences)
-    await db.chapters.bulkAdd(chapters)
-    // keep the original so a future parser version can re-process without re-import
-    await db.files.add({ bookId, name: preview.file.name, blob: preview.file })
-  })
+  await db.transaction(
+    'rw',
+    [db.books, db.sentences, db.chapters, db.files, db.covers],
+    async () => {
+      await db.books.add(book)
+      await db.sentences.bulkAdd(sentences)
+      await db.chapters.bulkAdd(chapters)
+      // keep the original so a future parser version can re-process without re-import
+      await db.files.add({ bookId, name: preview.file.name, blob: preview.file })
+      if (preview.parsed.cover) await db.covers.add({ bookId, blob: preview.parsed.cover })
+    },
+  )
 
   return bookId
 }

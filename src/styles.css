@@ -159,26 +159,125 @@ p {
   margin-top: 30vh;
 }
 
-.book-card {
-  text-align: left;
-  width: 100%;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 16px;
-  cursor: pointer;
+/* language sections */
+.lang-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
-.book-title {
+.lang-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform 0.15s;
+  color: var(--muted);
+  font-size: 1.1rem;
+}
+
+.chevron.open {
+  transform: rotate(90deg);
+}
+
+.lang-name {
   font-weight: 600;
 }
 
-.book-meta {
-  font-size: 0.82rem;
+.lang-count {
   color: var(--muted);
+  font-size: 0.85rem;
+}
+
+/* cover grid — books facing you */
+.cover-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 14px;
+}
+
+.cover-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cover {
+  position: relative;
+  aspect-ratio: 2 / 3;
+  width: 100%;
+  border: none;
+  border-radius: 6px;
+  padding: 0;
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--card);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.cover-front {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 8px;
+  text-align: center;
+  /* a lighter left edge suggests the spine */
+  border-left: 4px solid rgba(255, 255, 255, 0.25);
+}
+
+.cover-title {
+  color: #fff;
+  font-family: var(--font-reading);
+  font-weight: 600;
+  font-size: 0.85rem;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cover-author {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.7rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cover-menu {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #fff;
+  border-radius: 999px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.9rem;
+  line-height: 1;
 }
 
 .bar {
@@ -316,6 +415,14 @@ p {
   overflow-y: auto;
   display: flex;
   padding: 24px;
+  /* hold-to-peek must not trigger iOS text selection / callout */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.peeking {
+  margin: auto;
 }
 
 .sentence {
@@ -417,11 +524,59 @@ p {
   overflow-y: auto;
 }
 
-.popover-explain {
-  font-size: 0.88rem;
-  color: var(--muted);
+/* explain-more bottom tray */
+.tray {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  background: var(--card);
   border-top: 1px solid var(--border);
-  padding-top: 8px;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.3);
+  padding: 0 18px calc(10px + env(safe-area-inset-bottom));
+  transition: max-height 0.2s ease;
+  overflow: hidden;
+}
+
+.tray-collapsed {
+  max-height: 52px;
+}
+
+.tray-open {
+  max-height: 50dvh;
+  overflow-y: auto;
+}
+
+.tray-handle {
+  width: 100%;
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 0 6px;
+  cursor: pointer;
+}
+
+.handle-bar {
+  width: 38px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+}
+
+.tray-label {
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.tray-text {
+  font-size: 0.92rem;
+  line-height: 1.5;
+  padding: 4px 0 10px;
 }
 
 /* ── settings ───────────────────────────────────────────────────────────── */

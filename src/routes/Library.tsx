@@ -1,8 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { clearBookTranslations, deleteBook } from '../db/books'
 import { db, type Book } from '../db/schema'
-import { useSettings } from '../db/settings'
+import { updateSettings, useSettings } from '../db/settings'
 import { commitImport, prepareImport, type ImportPreview } from '../parsing/importBook'
 import { acceptedExtensions } from '../parsing/registry'
 import { navigate } from '../router'
@@ -18,12 +18,64 @@ const LANGS: Array<[string, string]> = [
 const langName = (code: string) =>
   new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
 
+/** Deterministic pleasant cover color from the title. */
+function colorFor(title: string): string {
+  let h = 0
+  for (const ch of title) h = (h * 31 + ch.codePointAt(0)!) % 360
+  return `hsl(${h}, 42%, 34%)`
+}
+
+function BookCover({
+  book,
+  coverUrl,
+  onOpen,
+  onMenu,
+}: {
+  book: Book
+  coverUrl?: string
+  onOpen: () => void
+  onMenu: () => void
+}) {
+  const progress =
+    book.sentenceCount > 1 ? (book.positionIndex / (book.sentenceCount - 1)) * 100 : 0
+  return (
+    <div className="cover-card">
+      <button className="cover" onClick={onOpen} aria-label={book.title}>
+        {coverUrl ? (
+          <img className="cover-img" src={coverUrl} alt="" loading="lazy" />
+        ) : (
+          <span className="cover-front" style={{ background: colorFor(book.title) }}>
+            <span className="cover-title">{book.title}</span>
+            {book.author && <span className="cover-author">{book.author}</span>}
+          </span>
+        )}
+        <span
+          className="cover-menu"
+          role="button"
+          aria-label={`Options for ${book.title}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onMenu()
+          }}
+        >
+          ⋯
+        </span>
+      </button>
+      <span className="bar">
+        <span className="bar-fill" style={{ width: `${progress}%`, display: 'block' }} />
+      </span>
+    </div>
+  )
+}
+
 export default function Library() {
   const books = useLiveQuery(() => db.books.orderBy('createdAt').reverse().toArray(), [])
+  const coverRows = useLiveQuery(() => db.covers.toArray(), [])
   const settings = useSettings()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [title, setTitle] = useState('')
+  const [author, setAuthor] = useState('')
   const [lang, setLang] = useState('de')
   const [detected, setDetected] = useState(false)
   const [parsing, setParsing] = useState(false)
@@ -32,6 +84,31 @@ export default function Library() {
   const [menuBook, setMenuBook] = useState<Book | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [cleared, setCleared] = useState<number | null>(null)
+
+  // one object URL per cover blob, revoked when the set changes
+  const coverUrls = useMemo(
+    () => new Map((coverRows ?? []).map((c) => [c.bookId, URL.createObjectURL(c.blob)])),
+    [coverRows],
+  )
+  useEffect(() => () => coverUrls.forEach((url) => URL.revokeObjectURL(url)), [coverUrls])
+
+  const sections = useMemo(() => {
+    const byLang = new Map<string, Book[]>()
+    for (const book of books ?? []) {
+      const list = byLang.get(book.targetLang) ?? []
+      list.push(book)
+      byLang.set(book.targetLang, list)
+    }
+    return [...byLang.entries()].sort((a, b) => langName(a[0]).localeCompare(langName(b[0])))
+  }, [books])
+
+  const collapsed = settings.collapsedLangs ?? []
+  const toggleSection = (code: string) =>
+    updateSettings({
+      collapsedLangs: collapsed.includes(code)
+        ? collapsed.filter((c) => c !== code)
+        : [...collapsed, code],
+    })
 
   function openMenu(book: Book) {
     setMenuBook(book)
@@ -46,6 +123,7 @@ export default function Library() {
       const p = await prepareImport(file)
       setPreview(p)
       setTitle(p.parsed.title)
+      setAuthor(p.parsed.author ?? '')
       setLang(p.suggestedLang && LANGS.some(([c]) => c === p.suggestedLang) ? p.suggestedLang : 'de')
       setDetected(!!p.suggestedLang)
     } catch (e) {
@@ -60,7 +138,7 @@ export default function Library() {
     setBusy(true)
     setError(null)
     try {
-      const bookId = await commitImport(preview, { title, targetLang: lang })
+      const bookId = await commitImport(preview, { title, targetLang: lang, author })
       setPreview(null)
       navigate(`/book/${bookId}`)
     } catch (e) {
@@ -89,42 +167,32 @@ export default function Library() {
           <p className="empty">No books yet — import one to start reading.</p>
         )}
         {error && !preview && <p className="error-text" style={{ textAlign: 'center' }}>{error}</p>}
-        {books?.map((book) => (
-          <button key={book.id} className="book-card" onClick={() => navigate(`/book/${book.id}`)}>
-            <span className="row" style={{ justifyContent: 'space-between' }}>
-              <span className="book-title">{book.title}</span>
-              <span
-                className="icon-btn book-menu"
-                role="button"
-                aria-label={`Options for ${book.title}`}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  openMenu(book)
-                }}
-              >
-                ⋯
-              </span>
-            </span>
-            <span className="book-meta">
-              {langName(book.targetLang)}
-              {book.author ? ` · ${book.author}` : ''} · {book.sentenceCount.toLocaleString()}{' '}
-              sentences
-            </span>
-            <span className="bar">
-              <span
-                className="bar-fill"
-                style={{
-                  width: `${
-                    book.sentenceCount > 1
-                      ? (book.positionIndex / (book.sentenceCount - 1)) * 100
-                      : 0
-                  }%`,
-                  display: 'block',
-                }}
-              />
-            </span>
-          </button>
-        ))}
+
+        {sections.map(([code, sectionBooks]) => {
+          const isCollapsed = collapsed.includes(code)
+          return (
+            <section key={code} className="lang-section">
+              <button className="lang-header" onClick={() => toggleSection(code)}>
+                <span className={isCollapsed ? 'chevron' : 'chevron open'}>›</span>
+                <span className="lang-name">{langName(code)}</span>
+                <span className="lang-count">{sectionBooks.length}</span>
+              </button>
+              {!isCollapsed && (
+                <div className="cover-grid">
+                  {sectionBooks.map((book) => (
+                    <BookCover
+                      key={book.id}
+                      book={book}
+                      coverUrl={coverUrls.get(book.id)}
+                      onOpen={() => navigate(`/book/${book.id}`)}
+                      onMenu={() => openMenu(book)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )
+        })}
       </main>
 
       <input
@@ -186,6 +254,10 @@ export default function Library() {
               <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} />
             </div>
             <div className="field">
+              <label>Author {preview.parsed.author ? '— detected' : '(optional)'}</label>
+              <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} />
+            </div>
+            <div className="field">
               <label>
                 Book language (what you’re learning)
                 {detected && <span> — detected</span>}
@@ -201,7 +273,7 @@ export default function Library() {
             <p className="note">
               {preview.parsed.chapters.length.toLocaleString()} chapter
               {preview.parsed.chapters.length === 1 ? '' : 's'}
-              {preview.parsed.author ? ` · ${preview.parsed.author}` : ''}
+              {preview.parsed.cover ? ' · cover found' : ''}
             </p>
             {error && <p className="error-text">{error}</p>}
             <div className="row">

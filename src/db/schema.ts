@@ -49,6 +49,12 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark'
   fontScale: number
   fontFamily: string
+  collapsedLangs?: string[] // library sections the user has folded shut
+}
+
+export interface CoverImage {
+  bookId: string
+  blob: Blob
 }
 
 export interface StoredFile {
@@ -66,6 +72,7 @@ class BreaderDB extends Dexie {
   translations!: Table<Translation, string>
   settings!: Table<Settings, string>
   files!: Table<StoredFile, string>
+  covers!: Table<CoverImage, string>
 
   constructor() {
     super('breader')
@@ -80,6 +87,10 @@ class BreaderDB extends Dexie {
     // v2: index translations by originating book so a book's cache can be cleared
     this.version(2).stores({
       translations: 'key, createdAt, bookId',
+    })
+    // v3: extracted cover images
+    this.version(3).stores({
+      covers: 'bookId',
     })
   }
 }

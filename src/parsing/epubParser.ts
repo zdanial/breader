@@ -133,6 +133,21 @@ export const epubParser: BookParser = {
       }
     }
 
+    // cover: EPUB3 properties="cover-image", else EPUB2 <meta name="cover" content="<id>">
+    let cover: Blob | undefined
+    const coverItem =
+      [...manifest.values()].find((m) => m.properties.includes('cover-image')) ??
+      (() => {
+        const coverId = Array.from(opf.getElementsByTagName('*'))
+          .find((el) => el.localName === 'meta' && el.getAttribute('name') === 'cover')
+          ?.getAttribute('content')
+        return coverId ? manifest.get(coverId) : undefined
+      })()
+    if (coverItem && coverItem.mediaType.startsWith('image/')) {
+      const data = files[resolvePath(coverItem.href, opfPath)]
+      if (data) cover = new Blob([data as BlobPart], { type: coverItem.mediaType })
+    }
+
     const titles = tocTitles(files, opfPath, opf, manifest)
 
     // spine order → chapters
@@ -158,6 +173,6 @@ export const epubParser: BookParser = {
     }
 
     if (chapters.length === 0) throw new Error('No readable chapters found in EPUB')
-    return { title, author, language, chapters } satisfies ParsedDoc
+    return { title, author, language, cover, chapters } satisfies ParsedDoc
   },
 }

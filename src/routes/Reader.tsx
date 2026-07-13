@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { db } from '../db/schema'
 import { updateSettings, useSettings } from '../db/settings'
 import { FONT_STACKS } from '../db/settings'
+import { ExplainTray } from '../reader/ExplainTray'
 import { SelectionPopover } from '../reader/SelectionPopover'
 import { SentenceText, sliceTokens, useTokens } from '../reader/SentenceText'
 import { useSwipe } from '../reader/useGestures'
@@ -61,12 +62,53 @@ export default function Reader({ bookId }: { bookId: string }) {
   const swipe = useSwipe({ onNext: next, onPrev: prev, scrollRef: contentRef })
 
   const orientation = useOrientation()
-  const pair = useSentenceTranslation(book, sentence, settings, orientation === 'landscape')
+
+  // hold-to-peek: press and hold in portrait shows the English of this sentence
+  const [peek, setPeek] = useState(false)
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const holdStart = useRef<{ x: number; y: number } | null>(null)
+  const suppressTap = useRef(false)
+
+  const endPeek = useCallback(() => {
+    if (peekTimer.current) clearTimeout(peekTimer.current)
+    peekTimer.current = null
+    holdStart.current = null
+    setPeek(false)
+  }, [])
+
+  const holdHandlers = {
+    onPointerDown: (e: React.PointerEvent) => {
+      holdStart.current = { x: e.clientX, y: e.clientY }
+      peekTimer.current = setTimeout(() => {
+        suppressTap.current = true // the release must not count as a word tap
+        setPeek(true)
+      }, 400)
+    },
+    onPointerMove: (e: React.PointerEvent) => {
+      const s = holdStart.current
+      if (s && Math.hypot(e.clientX - s.x, e.clientY - s.y) > 12 && !peek) endPeek()
+    },
+    onPointerUp: () => {
+      endPeek()
+      // let the synthetic click that follows this release be ignored, then re-arm
+      setTimeout(() => (suppressTap.current = false), 80)
+    },
+    onPointerCancel: endPeek,
+    onPointerLeave: endPeek,
+  }
+
+  const pair = useSentenceTranslation(
+    book,
+    sentence,
+    settings,
+    orientation === 'landscape' || peek,
+  )
 
   const tokens = useTokens(sentence?.text, book?.targetLang ?? 'en')
 
   // tap 1 = word · tap on a second word = span between them · re-tap = dismiss
   const onWordTap = useCallback((_word: string, index: number, rect: DOMRect) => {
+    if (suppressTap.current) return // release of a hold-to-peek, not a real tap
     setSelection((sel) => {
       if (!sel) return { start: index, end: index, rect }
       if (sel.start === sel.end) {
@@ -75,6 +117,12 @@ export default function Reader({ bookId }: { bookId: string }) {
       }
       return { start: index, end: index, rect }
     })
+  }, [])
+
+  // tapping anything that isn't a word dismisses the selection
+  const onBackgroundTap = useCallback((e: React.MouseEvent) => {
+    if (suppressTap.current) return
+    if (!(e.target as HTMLElement).closest('.word')) setSelection(null)
   }, [])
 
   const selectionText = selection ? sliceTokens(tokens, selection.start, selection.end) : ''
@@ -138,19 +186,29 @@ export default function Reader({ bookId }: { bookId: string }) {
       </header>
 
       {orientation === 'portrait' ? (
-        <main className="sentence-area" ref={contentRef}>
-          {sentence && (
-            <SentenceText
-              tokens={tokens}
-              lang={book.targetLang}
-              dir={book.dir}
-              selectedRange={selection}
-              onWordTap={onWordTap}
-            />
-          )}
+        <main
+          className="sentence-area"
+          ref={contentRef}
+          onClick={onBackgroundTap}
+          {...holdHandlers}
+        >
+          {sentence &&
+            (peek ? (
+              <p className="sentence base-sentence peeking" lang="en" dir="ltr">
+                {pair.translation ?? 'Translating…'}
+              </p>
+            ) : (
+              <SentenceText
+                tokens={tokens}
+                lang={book.targetLang}
+                dir={book.dir}
+                selectedRange={selection}
+                onWordTap={onWordTap}
+              />
+            ))}
         </main>
       ) : (
-        <main className="pair-area" ref={contentRef}>
+        <main className="pair-area" ref={contentRef} onClick={onBackgroundTap}>
           <div className="pane">
             {sentence && (
               <SentenceText
@@ -225,18 +283,32 @@ export default function Reader({ bookId }: { bookId: string }) {
         </div>
       )}
 
-      {selection && sentence && selectionText && (
-        <SelectionPopover
-          text={selectionText}
-          kind={selection.start === selection.end ? 'word' : 'phrase'}
-          sentence={sentence.text}
-          targetLang={book.targetLang}
-          model={settings.model}
-          apiKey={settings.openaiKey}
-          bookId={book.id}
-          anchor={selection.rect}
-          onClose={() => setSelection(null)}
-        />
+      {selection && sentence && selectionText && !peek && (
+        <>
+          <SelectionPopover
+            lookup={{
+              text: selectionText,
+              sentence: sentence.text,
+              targetLang: book.targetLang,
+              model: settings.model,
+              apiKey: settings.openaiKey,
+              bookId: book.id,
+            }}
+            kind={selection.start === selection.end ? 'word' : 'phrase'}
+            anchor={selection.rect}
+          />
+          <ExplainTray
+            key={selectionText}
+            lookup={{
+              text: selectionText,
+              sentence: sentence.text,
+              targetLang: book.targetLang,
+              model: settings.model,
+              apiKey: settings.openaiKey,
+              bookId: book.id,
+            }}
+          />
+        </>
       )}
 
       <footer className="reader-footer">

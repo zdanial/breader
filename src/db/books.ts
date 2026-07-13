@@ -5,12 +5,13 @@ import { db } from './schema'
 export async function deleteBook(bookId: string): Promise<void> {
   await db.transaction(
     'rw',
-    [db.books, db.sentences, db.chapters, db.files, db.translations],
+    [db.books, db.sentences, db.chapters, db.files, db.translations, db.covers],
     async () => {
       await db.sentences.where('bookId').equals(bookId).delete()
       await db.chapters.where('bookId').equals(bookId).delete()
       await db.translations.where('bookId').equals(bookId).delete()
       await db.files.delete(bookId)
+      await db.covers.delete(bookId)
       await db.books.delete(bookId)
     },
   )

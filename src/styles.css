@@ -44,6 +44,10 @@ body {
   color: var(--fg);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+  /* pages scroll internally; the document itself never moves */
+  overflow: hidden;
+  position: fixed;
+  inset: 0;
 }
 
 button,
@@ -147,6 +151,7 @@ p {
 .shelf {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 4px 14px calc(90px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
@@ -412,13 +417,22 @@ p {
 
 .sentence-area {
   flex: 1;
-  overflow-y: auto;
   display: flex;
   padding: 24px;
+  /* locked by default — swipes must not jiggle the view */
+  overflow: hidden;
+  touch-action: none;
   /* hold-to-peek must not trigger iOS text selection / callout */
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
+}
+
+.sentence-area.scrollable {
+  /* only when a sentence is taller than the screen */
+  overflow-y: auto;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
 }
 
 .peeking {
@@ -462,6 +476,10 @@ p {
   overflow-y: auto;
   display: flex;
   padding: 16px 20px;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .pair-area .pane + .pane {

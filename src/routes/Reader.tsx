@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { db } from '../db/schema'
 import { updateSettings, useSettings } from '../db/settings'
 import { FONT_STACKS } from '../db/settings'
@@ -61,7 +61,18 @@ export default function Reader({ bookId }: { bookId: string }) {
   const contentRef = useRef<HTMLElement | null>(null)
   const swipe = useSwipe({ onNext: next, onPrev: prev, scrollRef: contentRef })
 
+  // scroll is locked unless the sentence genuinely overflows the screen —
+  // otherwise swipes rubber-band the view and everything jiggles
+  const [overflowing, setOverflowing] = useState(false)
+
   const orientation = useOrientation()
+
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    el.scrollTop = 0 // fresh sentence starts at the top
+    setOverflowing(el.scrollHeight > el.clientHeight + 4)
+  }, [sentence, settings.fontScale, settings.fontFamily, orientation])
 
   // hold-to-peek: press and hold in portrait shows the English of this sentence
   const [peek, setPeek] = useState(false)
@@ -187,7 +198,7 @@ export default function Reader({ bookId }: { bookId: string }) {
 
       {orientation === 'portrait' ? (
         <main
-          className="sentence-area"
+          className={overflowing ? 'sentence-area scrollable' : 'sentence-area'}
           ref={contentRef}
           onClick={onBackgroundTap}
           {...holdHandlers}

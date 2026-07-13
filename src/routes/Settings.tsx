@@ -19,6 +19,7 @@ const FONTS: Array<[string, string]> = [
   ['serif', 'serif'],
   ['sans', 'sans'],
 ]
+const ALIGNS = ['center', 'left', 'justify'] as const
 
 export default function Settings() {
   const settings = useSettings()
@@ -143,6 +144,20 @@ export default function Settings() {
                   onClick={() => updateSettings({ fontFamily: key })}
                 >
                   {name}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="field">
+            <label>text alignment</label>
+            <div className="seg">
+              {ALIGNS.map((a) => (
+                <button
+                  key={a}
+                  className={(settings.readAlign ?? 'center') === a ? 'active' : ''}
+                  onClick={() => updateSettings({ readAlign: a })}
+                >
+                  {a}
                 </button>
               ))}
             </div>

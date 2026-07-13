@@ -504,7 +504,10 @@ p {
 .sentence-area {
   flex: 1;
   display: flex;
-  padding: 24px 26px;
+  align-items: center;
+  justify-content: center;
+  /* tighter vertical padding reclaims the dead space at the bottom */
+  padding: 12px 24px;
   overflow: hidden;
   touch-action: none;
   -webkit-user-select: none;
@@ -515,27 +518,35 @@ p {
   overflow-y: auto;
   touch-action: pan-y;
   overscroll-behavior: contain;
-}
-.peeking {
-  margin: auto;
+  /* top-align so an over-tall sentence's first lines stay reachable
+     (centered flex would clip the top of a scrollable overflow) */
+  align-items: flex-start;
 }
 .sentence {
-  margin: auto;
   font-family: var(--font-reading);
+  /* fallback size; the fit hook applies a measured px inline */
   font-size: calc(clamp(1.7rem, 7vw, 2.6rem) * var(--font-scale, 1));
   line-height: 1.5;
-  text-align: center;
+  text-align: var(--read-align, center);
+  text-wrap: pretty;
   color: var(--fg);
   width: 100%;
 }
+/* balance evens out line lengths on short, centered sentences */
+.sentence-area .sentence {
+  text-wrap: balance;
+}
 .word {
   cursor: pointer;
-  padding: 0 1px;
 }
+/* padding gives the highlight breathing room; the equal negative margin
+   cancels it so selecting a word never reflows the line (no 'shifty' jump) */
 .word.selected {
   background: var(--sel);
   color: var(--sel-fg);
   padding: 0 3px;
+  margin: 0 -3px;
+  border-radius: 1px;
 }
 .hl {
   background: var(--hl);

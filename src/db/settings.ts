@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   fontScale: 1,
   fontFamily: 'serif',
+  readAlign: 'center',
   accentColor: DEFAULT_ACCENT,
 }
 

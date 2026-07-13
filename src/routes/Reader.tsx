@@ -15,6 +15,7 @@ import { FONT_STACKS } from '../db/settings'
 import { ExplainTray } from '../reader/ExplainTray'
 import { SelectionPopover } from '../reader/SelectionPopover'
 import { SentenceText, sliceTokens, useTokens } from '../reader/SentenceText'
+import { useFitText } from '../reader/useFitText'
 import { useSwipe } from '../reader/useGestures'
 import { useOrientation } from '../reader/useOrientation'
 import { useSentenceTranslation } from '../reader/useSentenceTranslation'
@@ -84,13 +85,6 @@ export default function Reader({ bookId }: { bookId: string }) {
 
   const orientation = useOrientation()
 
-  useLayoutEffect(() => {
-    const el = contentRef.current
-    if (!el) return
-    el.scrollTop = 0 // fresh sentence starts at the top
-    setOverflowing(el.scrollHeight > el.clientHeight + 4)
-  }, [sentence, settings.fontScale, settings.fontFamily, orientation])
-
   // hold-to-peek: press and hold in portrait shows the English of this sentence
   const [peek, setPeek] = useState(false)
   const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -133,6 +127,22 @@ export default function Reader({ bookId }: { bookId: string }) {
   )
 
   const tokens = useTokens(sentence?.text, book?.targetLang ?? 'en')
+
+  // measure-and-fit: the chosen size is the ceiling; long sentences shrink to fit
+  const fitText = peek ? (pair.translation ?? '') : (sentence?.text ?? '')
+  const fontPx = useFitText(contentRef, {
+    text: fitText,
+    maxPx: Math.round(46 * settings.fontScale),
+    enabled: orientation === 'portrait',
+  })
+
+  // scroll only unlocks if the sentence still overflows at the fitted size
+  useLayoutEffect(() => {
+    const el = contentRef.current
+    if (!el) return
+    el.scrollTop = 0
+    setOverflowing(el.scrollHeight > el.clientHeight + 4)
+  }, [sentence, orientation, fontPx])
 
   // tap 1 = word · tap on a second word = span between them · re-tap = dismiss
   const onWordTap = useCallback((_word: string, index: number, rect: DOMRect) => {
@@ -239,6 +249,7 @@ export default function Reader({ bookId }: { bookId: string }) {
       style={{
         ['--font-scale' as string]: scale,
         ['--font-reading' as string]: FONT_STACKS[settings.fontFamily] ?? FONT_STACKS.serif,
+        ['--read-align' as string]: settings.readAlign ?? 'center',
       }}
       {...swipe}
     >
@@ -287,7 +298,12 @@ export default function Reader({ bookId }: { bookId: string }) {
         >
           {sentence &&
             (peek ? (
-              <p className="sentence base-sentence peeking" lang="en" dir="ltr">
+              <p
+                className="sentence base-sentence peeking"
+                lang="en"
+                dir="ltr"
+                style={{ fontSize: fontPx }}
+              >
                 {pair.translation ?? 'Translating…'}
               </p>
             ) : (
@@ -295,6 +311,7 @@ export default function Reader({ bookId }: { bookId: string }) {
                 tokens={tokens}
                 lang={book.targetLang}
                 dir={book.dir}
+                fontPx={fontPx}
                 selectedRange={selection}
                 highlightRanges={highlights}
                 onWordTap={onWordTap}

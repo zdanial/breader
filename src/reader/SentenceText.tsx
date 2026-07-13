@@ -23,6 +23,7 @@ export function SentenceText({
   tokens,
   lang,
   dir,
+  fontPx,
   selectedRange,
   highlightRanges,
   onWordTap,
@@ -30,6 +31,7 @@ export function SentenceText({
   tokens: WordToken[]
   lang: string
   dir: 'ltr' | 'rtl'
+  fontPx?: number
   selectedRange?: { start: number; end: number } | null
   highlightRanges?: Array<{ start: number; end: number }>
   onWordTap?: (word: string, index: number, rect: DOMRect) => void
@@ -38,7 +40,7 @@ export function SentenceText({
   const isHighlighted = (i: number) =>
     highlightRanges?.some((h) => i >= h.start && i <= h.end) ?? false
   return (
-    <p className="sentence" lang={lang} dir={dir}>
+    <p className="sentence" lang={lang} dir={dir} style={fontPx ? { fontSize: fontPx } : undefined}>
       {tokens.map((token, i) =>
         token.isWord ? (
           <span

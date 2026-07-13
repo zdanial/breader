@@ -506,8 +506,10 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
-  /* tighter vertical padding reclaims the dead space at the bottom */
-  padding: 12px 24px;
+  /* Bottom padding permanently reserves the collapsed explain-tray zone, so
+     text is always sized above where the tray appears — selecting a word never
+     shifts the text (the tray just slides into the reserved space). */
+  padding: 12px 24px calc(128px + env(safe-area-inset-bottom));
   overflow: hidden;
   touch-action: none;
   -webkit-user-select: none;
@@ -521,11 +523,6 @@ p {
   /* top-align so an over-tall sentence's first lines stay reachable
      (centered flex would clip the top of a scrollable overflow) */
   align-items: flex-start;
-}
-/* reserve room for the explain tray while a word is selected, so the fit
-   sizes text above it instead of behind it */
-.sentence-area.with-tray {
-  padding-bottom: calc(150px + env(safe-area-inset-bottom));
 }
 .sentence {
   font-family: var(--font-reading);

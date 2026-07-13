@@ -130,14 +130,13 @@ export default function Reader({ bookId }: { bookId: string }) {
 
   // measure-and-fit: the chosen size is the ceiling; long sentences shrink to fit
   const fitText = peek ? (pair.translation ?? '') : (sentence?.text ?? '')
-  // the explain tray overlays the bottom while a word is selected — reserve
-  // room for it so the fit never sizes text behind it
-  const trayReserved = !!selection && !peek
+  // The reading area permanently reserves the collapsed explain-tray zone at
+  // the bottom (via CSS padding), so text is always sized above where the tray
+  // will appear — the tray slides out without ever shifting the text.
   const fontPx = useFitText(contentRef, {
     text: fitText,
     maxPx: Math.round(46 * settings.fontScale),
     enabled: orientation === 'portrait',
-    revalidate: trayReserved,
   })
 
   // scroll only unlocks if the sentence still overflows at the fitted size
@@ -295,9 +294,7 @@ export default function Reader({ bookId }: { bookId: string }) {
 
       {orientation === 'portrait' ? (
         <main
-          className={`sentence-area${overflowing ? ' scrollable' : ''}${
-            trayReserved ? ' with-tray' : ''
-          }`}
+          className={overflowing ? 'sentence-area scrollable' : 'sentence-area'}
           ref={contentRef}
           onClick={onBackgroundTap}
           {...holdHandlers}

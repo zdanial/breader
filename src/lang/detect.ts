@@ -12,6 +12,10 @@ const STOPWORDS: Record<string, string[]> = {
 
 /** Detect the dominant language of a sample, or undefined when too ambiguous. */
 export function detectLanguage(sample: string): string | undefined {
+  // script ranges are decisive when present — cheaper and surer than stopwords
+  if (/[֐-׿]/.test(sample)) return 'he' // Hebrew
+  if (/[؀-ۿݐ-ݿ]/.test(sample)) return 'ar' // Arabic
+
   const words = sample.toLowerCase().split(/[^\p{L}]+/u, 4000).filter(Boolean)
   if (words.length < 20) return undefined
 

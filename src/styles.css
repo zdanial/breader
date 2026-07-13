@@ -602,6 +602,10 @@ p {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 }
+/* RTL target: the target pane (first child) sits on the right, base on left */
+.pair-area.rtl {
+  flex-direction: row-reverse;
+}
 .pair-area .pane {
   flex: 1;
   overflow-y: auto;

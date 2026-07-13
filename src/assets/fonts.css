@@ -21,3 +21,25 @@
   font-display: swap;
   src: url('./fonts/inter.woff2') format('woff2');
 }
+/* RTL reading faces — DM Serif Display has no Hebrew/Arabic glyphs. */
+@font-face {
+  font-family: 'Frank Ruhl Libre';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('./fonts/frankruhl.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Amiri';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/amiri-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Amiri';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('./fonts/amiri-700.woff2') format('woff2');
+}

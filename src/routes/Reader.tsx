@@ -11,7 +11,7 @@ import {
 import { db } from '../db/schema'
 import { updateSettings, useSettings } from '../db/settings'
 import { translateWord, translatePhrase } from '../translation/wordTranslator'
-import { FONT_STACKS } from '../db/settings'
+import { readingFontStack } from '../db/settings'
 import { ExplainTray } from '../reader/ExplainTray'
 import { SelectionPopover } from '../reader/SelectionPopover'
 import { SentenceText, sliceTokens, useTokens } from '../reader/SentenceText'
@@ -251,7 +251,7 @@ export default function Reader({ bookId }: { bookId: string }) {
       className="page reader"
       style={{
         ['--font-scale' as string]: scale,
-        ['--font-reading' as string]: FONT_STACKS[settings.fontFamily] ?? FONT_STACKS.serif,
+        ['--font-reading' as string]: readingFontStack(book.targetLang, settings.fontFamily),
         ['--read-align' as string]: settings.readAlign ?? 'center',
       }}
       {...swipe}
@@ -322,7 +322,11 @@ export default function Reader({ bookId }: { bookId: string }) {
             ))}
         </main>
       ) : (
-        <main className="pair-area" ref={contentRef} onClick={onBackgroundTap}>
+        <main
+          className={book.dir === 'rtl' ? 'pair-area rtl' : 'pair-area'}
+          ref={contentRef}
+          onClick={onBackgroundTap}
+        >
           <div className="pane">
             {sentence && (
               <SentenceText

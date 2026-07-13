@@ -14,6 +14,8 @@ const LANGS: Array<[string, string]> = [
   ['es', 'Spanish'],
   ['it', 'Italian'],
   ['pt', 'Portuguese'],
+  ['he', 'Hebrew'],
+  ['ar', 'Arabic'],
 ]
 
 const langName = (code: string) =>

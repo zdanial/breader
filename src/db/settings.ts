@@ -14,11 +14,24 @@ export const DEFAULT_SETTINGS: Settings = {
 }
 
 // Reading font: the design-system serif (DM Serif Display) for the brand
-// reading experience, or Inter for a plainer sans read. Keyed so a
-// script-specific stack (Hebrew/Arabic fast-follow) can slot in per language.
+// reading experience, or Inter for a plainer sans read.
 export const FONT_STACKS: Record<string, string> = {
   serif: "'DM Serif Display', Georgia, 'Times New Roman', serif",
   sans: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+}
+
+// System stack that covers Hebrew/Arabic for the 'sans' reading option.
+const RTL_SANS = "-apple-system, 'Segoe UI', system-ui, sans-serif"
+
+/**
+ * The reading-font stack for a language. DM Serif Display has no Hebrew/Arabic
+ * glyphs, so RTL scripts use their own bundled serif (Frank Ruhl Libre / Amiri).
+ */
+export function readingFontStack(lang: string, fontFamily: string): string {
+  const primary = lang.toLowerCase().split('-')[0]
+  if (primary === 'he') return fontFamily === 'sans' ? RTL_SANS : "'Frank Ruhl Libre', serif"
+  if (primary === 'ar') return fontFamily === 'sans' ? RTL_SANS : "'Amiri', serif"
+  return FONT_STACKS[fontFamily] ?? FONT_STACKS.serif
 }
 
 // Signal-family accent choices offered in Settings.

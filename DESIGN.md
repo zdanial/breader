@@ -323,3 +323,53 @@ Called out so they can be corrected cheaply:
 - Base language stays **English** for MVP (no base-language picker yet).
 - The OpenAI key living in IndexedDB on the user's own device is an accepted tradeoff;
   UI will state "your key never leaves your device."
+
+---
+
+## 8. Post-refresh roadmap (Phase 2)
+
+Planned after the UI refresh. Decisions locked with the user 2026-07-13. Same
+vertical-slice discipline — each slice is independently shippable and verified.
+
+### Phase 1 — Reading surface (front-end only, no data migration)
+- **1a — Fit & space.** Autosize long sentences by **measure-and-fit** (JS measures the
+  rendered sentence and scales the font down until it fits the reading box; the A−/A+
+  setting is the max). Reclaim wasted bottom space — expand the reading area to use the
+  full height between header and footer; rebalance vertical rhythm.
+- **1b — Wrap & stability.** `text-wrap: balance` (short) / `pretty` (long) on the
+  sentence. Fix the **highlight layout-shift**: `.word.selected` currently adds
+  horizontal padding that reflows the line — switch to a non-reflowing highlight
+  (inset box-shadow / outline) so selecting a word in a long sentence doesn't jump.
+- **1c — Justification setting.** New text-alignment control in Settings
+  (center / left / justified) driving `.sentence`. Sets up RTL.
+
+### Phase 2 — Segmentation architecture + alignment bug
+- **2a — Segmenter registry.** New `src/segment/` mirroring the file-type parser
+  registry: `pickSegmenter(lang)` → a language-specific segmenter, else a **default**.
+  The default wraps `Intl.Segmenter` + a fragment-merge heuristic (folds `»«` / leading
+  `—` / `1.` / scene-break fragments back into their sentence). A **German** segmenter
+  adds guillemet-dialogue joins. Import calls the registry instead of raw
+  `segmentSentences`. **Applies to new imports only** — existing books keep their
+  sentences (protects saved highlights/quotes/positions); re-import to upgrade.
+- **2b — Robust translation (alignment fix).** Root cause: `ensureWindowTranslated`
+  trusts the model's returned `id` to index `pending[]`; fragmenty input makes the model
+  merge/drop/renumber, caching a neighbour's English under a sentence's content-hash key
+  (persistent misalignment). Fix: **keep batching**, but validate each batch (item count
+  + echoed source) before caching, fall back to **single-sentence** translation for
+  windows that fail validation, and bump a sentence-cache version to self-heal pairs
+  already poisoned on-device.
+
+### Phase 3 — Hebrew & Arabic (RTL)
+- **3a — RTL foundations.** `ar` + `he` segmenters in the new registry (Arabic/Hebrew
+  sentence punctuation), script-range language detection, Hebrew/Arabic in the import
+  language list, and **bundled RTL serif faces** (self-hosted woff2 — e.g. Frank Ruhl
+  Libre for Hebrew, Amiri / Noto Naskh for Arabic) since DM Serif Display has no glyphs
+  for these scripts.
+- **3b — RTL rendering pass.** Validate and fix `dir`-aware rendering everywhere:
+  reading text, landscape pane order, progress/nav chevron direction, word-chip
+  anchoring, selection, and justification under RTL. The `dir` plumbing exists from day
+  one — this is the validation-and-polish pass.
+
+**Sequence:** 1 → 2 → 3. Phase 2's segmenter registry is the plug point Phase 3 extends;
+Phase 2 also closes the alignment bug. Locked build choices: measure-and-fit autosize ·
+batch-with-validation translation · new-imports-only re-segmentation · bundled RTL fonts.

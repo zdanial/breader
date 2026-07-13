@@ -30,6 +30,8 @@ jobs:
       # served at https://<user>.github.io/breader/ — base must match the repo name
       - run: npm run build -- --base=/breader/
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

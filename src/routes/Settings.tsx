@@ -168,7 +168,7 @@ export default function Settings() {
               <Button
                 variant="secondary"
                 onClick={() =>
-                  updateSettings({ fontScale: Math.max(0.7, +(settings.fontScale - 0.1).toFixed(2)) })
+                  updateSettings({ fontScale: Math.max(0.4, +(settings.fontScale - 0.1).toFixed(2)) })
                 }
               >
                 A−

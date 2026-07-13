@@ -9,9 +9,9 @@ import { useCallback, useLayoutEffect, useState, type RefObject } from 'react'
  */
 export function useFitText(
   boxRef: RefObject<HTMLElement | null>,
-  deps: { text: string; maxPx: number; minPx?: number; enabled?: boolean },
+  deps: { text: string; maxPx: number; minPx?: number; enabled?: boolean; revalidate?: unknown },
 ): number {
-  const { text, maxPx, minPx = 15, enabled = true } = deps
+  const { text, maxPx, minPx = 12, enabled = true, revalidate } = deps
   const [fontPx, setFontPx] = useState(maxPx)
 
   const measure = useCallback(() => {
@@ -23,10 +23,18 @@ export function useFitText(
       return
     }
 
+    // clientHeight/Width include padding — subtract it so reserved bottom space
+    // (e.g. for the explain tray) actually shrinks the area the text may fill
+    const cs = getComputedStyle(box)
+    const availH =
+      box.clientHeight - parseFloat(cs.paddingTop || '0') - parseFloat(cs.paddingBottom || '0')
+    const availW =
+      box.clientWidth - parseFloat(cs.paddingLeft || '0') - parseFloat(cs.paddingRight || '0')
+
     const fits = (px: number) => {
       el.style.fontSize = `${px}px`
       // tolerance so sub-pixel rounding doesn't force a needless shrink
-      return el.scrollHeight <= box.clientHeight + 1 && el.scrollWidth <= box.clientWidth + 1
+      return el.scrollHeight <= availH + 1 && el.scrollWidth <= availW + 1
     }
 
     let resolved = maxPx
@@ -44,7 +52,7 @@ export function useFitText(
     setFontPx(resolved)
   }, [boxRef, maxPx, minPx, enabled])
 
-  useLayoutEffect(measure, [measure, text])
+  useLayoutEffect(measure, [measure, text, revalidate])
 
   useLayoutEffect(() => {
     const box = boxRef.current

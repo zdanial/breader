@@ -130,10 +130,14 @@ export default function Reader({ bookId }: { bookId: string }) {
 
   // measure-and-fit: the chosen size is the ceiling; long sentences shrink to fit
   const fitText = peek ? (pair.translation ?? '') : (sentence?.text ?? '')
+  // the explain tray overlays the bottom while a word is selected — reserve
+  // room for it so the fit never sizes text behind it
+  const trayReserved = !!selection && !peek
   const fontPx = useFitText(contentRef, {
     text: fitText,
     maxPx: Math.round(46 * settings.fontScale),
     enabled: orientation === 'portrait',
+    revalidate: trayReserved,
   })
 
   // scroll only unlocks if the sentence still overflows at the fitted size
@@ -276,7 +280,7 @@ export default function Reader({ bookId }: { bookId: string }) {
         <button
           className="font-btn"
           aria-label="Smaller text"
-          onClick={() => updateSettings({ fontScale: Math.max(0.7, +(scale - 0.1).toFixed(2)) })}
+          onClick={() => updateSettings({ fontScale: Math.max(0.4, +(scale - 0.1).toFixed(2)) })}
         >
           A−
         </button>
@@ -291,7 +295,9 @@ export default function Reader({ bookId }: { bookId: string }) {
 
       {orientation === 'portrait' ? (
         <main
-          className={overflowing ? 'sentence-area scrollable' : 'sentence-area'}
+          className={`sentence-area${overflowing ? ' scrollable' : ''}${
+            trayReserved ? ' with-tray' : ''
+          }`}
           ref={contentRef}
           onClick={onBackgroundTap}
           {...holdHandlers}

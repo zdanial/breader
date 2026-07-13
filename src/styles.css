@@ -522,6 +522,11 @@ p {
      (centered flex would clip the top of a scrollable overflow) */
   align-items: flex-start;
 }
+/* reserve room for the explain tray while a word is selected, so the fit
+   sizes text above it instead of behind it */
+.sentence-area.with-tray {
+  padding-bottom: calc(150px + env(safe-area-inset-bottom));
+}
 .sentence {
   font-family: var(--font-reading);
   /* fallback size; the fit hook applies a measured px inline */

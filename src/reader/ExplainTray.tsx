@@ -1,18 +1,22 @@
 import { useRef, useState } from 'react'
 import { explainSelection, type Lookup } from '../translation/wordTranslator'
+import { Button, Rule } from '../ui'
 
 type TrayState = 'collapsed' | 'loading' | 'open' | 'error'
 
 /**
- * Bottom tray shown while a word/phrase is selected: save/highlight actions,
- * plus a handle you drag up (or tap) to run the deeper "explain" lookup.
+ * Bottom explain sheet shown while a word/phrase is selected: save/highlight
+ * actions, plus a handle you drag up (or tap) to run the deeper explanation.
+ * Styled as the design-system bottom sheet — 3px top rule, serif headword.
  */
 export function ExplainTray({
+  term,
   lookup,
   isHighlighted,
   onSaveWord,
   onToggleHighlight,
 }: {
+  term: string
   lookup: Lookup
   isHighlighted: boolean
   onSaveWord: () => Promise<void>
@@ -34,9 +38,11 @@ export function ExplainTray({
       .catch(() => setState('error'))
   }
 
+  const open = state !== 'collapsed'
+
   return (
     <div
-      className={`tray ${state === 'collapsed' ? 'tray-collapsed' : 'tray-open'}`}
+      className={`tray ${open ? 'tray-open' : 'tray-collapsed'}`}
       onTouchStart={(e) => {
         startY.current = e.touches[0].clientY
       }}
@@ -52,13 +58,27 @@ export function ExplainTray({
     >
       <button className="tray-handle" onClick={expand}>
         <span className="handle-bar" />
-        <span className="tray-label">
-          {state === 'collapsed' ? 'Explain more' : 'Explanation'}
-        </span>
+        {!open && <span className="tray-label">explain more</span>}
       </button>
+
+      {open && (
+        <>
+          <div className="tray-headword">
+            <span className="word">{term}</span>
+            <span className="tray-eyebrow">explanation</span>
+          </div>
+          <Rule />
+          {state === 'loading' && <p className="muted tray-text">thinking…</p>}
+          {state === 'open' && <p className="tray-text">{text}</p>}
+          {state === 'error' && (
+            <p className="muted tray-text">couldn’t load the explanation — tap the handle to retry.</p>
+          )}
+        </>
+      )}
+
       <div className="tray-actions">
-        <button
-          className="btn secondary"
+        <Button
+          variant="secondary"
           disabled={saved}
           onClick={() =>
             void onSaveWord().then(() => {
@@ -67,17 +87,12 @@ export function ExplainTray({
             })
           }
         >
-          {saved ? 'Saved ✓' : '⭐ Save word'}
-        </button>
-        <button className="btn secondary" onClick={() => void onToggleHighlight()}>
-          {isHighlighted ? 'Remove highlight' : '🖍 Highlight'}
-        </button>
+          {saved ? 'saved ✓' : '★ save word'}
+        </Button>
+        <Button variant="secondary" onClick={() => void onToggleHighlight()}>
+          {isHighlighted ? 'remove highlight' : '✎ highlight'}
+        </Button>
       </div>
-      {state === 'loading' && <p className="muted tray-text">Thinking…</p>}
-      {state === 'open' && <p className="tray-text">{text}</p>}
-      {state === 'error' && (
-        <p className="muted tray-text">Couldn’t load the explanation — tap to retry.</p>
-      )}
     </div>
   )
 }

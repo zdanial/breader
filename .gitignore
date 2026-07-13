@@ -4,3 +4,6 @@ dev-dist/
 .DS_Store
 *.local
 .fixtures/
+
+# design artifacts
+*.zip

@@ -18,6 +18,9 @@ import { SentenceText, sliceTokens, useTokens } from '../reader/SentenceText'
 import { useSwipe } from '../reader/useGestures'
 import { useOrientation } from '../reader/useOrientation'
 import { useSentenceTranslation } from '../reader/useSentenceTranslation'
+import { ProgressBar, Rule } from '../ui'
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
 
 interface Selection {
   start: number // token indices, inclusive
@@ -39,6 +42,11 @@ export default function Reader({ bookId }: { bookId: string }) {
 
   // moving to another sentence dismisses any open gloss
   useEffect(() => setSelection(null), [pos])
+
+  // mark this as the 'currently reading' book (drives the library live square)
+  useEffect(() => {
+    void updateSettings({ lastReadBookId: bookId })
+  }, [bookId])
 
   // initialize position from the saved resume point once the book loads,
   // clamped in case a stale/corrupt value was persisted
@@ -255,14 +263,14 @@ export default function Reader({ bookId }: { bookId: string }) {
           {quoteId ? '★' : '☆'}
         </button>
         <button
-          className="icon-btn"
+          className="font-btn"
           aria-label="Smaller text"
           onClick={() => updateSettings({ fontScale: Math.max(0.7, +(scale - 0.1).toFixed(2)) })}
         >
           A−
         </button>
         <button
-          className="icon-btn"
+          className="font-btn"
           aria-label="Larger text"
           onClick={() => updateSettings({ fontScale: Math.min(1.8, +(scale + 0.1).toFixed(2)) })}
         >
@@ -343,8 +351,9 @@ export default function Reader({ bookId }: { bookId: string }) {
 
       {showToc && chapters && (
         <div className="modal-overlay" onClick={() => setShowToc(false)}>
-          <div className="modal toc" onClick={(e) => e.stopPropagation()}>
-            <h2>Chapters</h2>
+          <div className="sheet toc" onClick={(e) => e.stopPropagation()}>
+            <h2 className="sheet-title">chapters</h2>
+            <Rule />
             <div className="toc-list">
               {chapters.map((ch) => {
                 const isCurrent =
@@ -386,6 +395,7 @@ export default function Reader({ bookId }: { bookId: string }) {
           />
           <ExplainTray
             key={selectionText}
+            term={selectionText}
             lookup={{
               text: selectionText,
               sentence: sentence.text,
@@ -402,17 +412,25 @@ export default function Reader({ bookId }: { bookId: string }) {
       )}
 
       <footer className="reader-footer">
-        <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-          <span className="reader-progress">
-            {pos != null ? pos + 1 : '–'} / {count}
+        <div className="reader-foot-row">
+          <span style={{ display: 'flex', alignItems: 'baseline' }}>
+            <span className="page-numeral">{pos != null ? pad2(pos + 1) : '––'}</span>
+            <span className="page-total">/ {pad2(count)}</span>
+          </span>
+          <span className="reader-nav">
+            <button onClick={prev} style={{ opacity: pos && pos > 0 ? 1 : 0.28 }} aria-label="Previous">
+              ‹
+            </button>
+            <button
+              onClick={next}
+              style={{ opacity: pos != null && pos < count - 1 ? 1 : 0.28 }}
+              aria-label="Next"
+            >
+              ›
+            </button>
           </span>
         </div>
-        <div className="bar">
-          <div
-            className="bar-fill"
-            style={{ width: `${count > 1 && pos != null ? (pos / (count - 1)) * 100 : 0}%` }}
-          />
-        </div>
+        <ProgressBar value={count > 1 && pos != null ? pos / (count - 1) : 0} />
       </footer>
     </div>
   )

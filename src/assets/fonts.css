@@ -1,0 +1,23 @@
+/* Self-hosted so the reader's typography works fully offline (no CDN). */
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/dmserifdisplay-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DM Serif Display';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('./fonts/dmserifdisplay-400i.woff2') format('woff2');
+}
+/* Inter is a variable font — one file covers the whole weight axis. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('./fonts/inter.woff2') format('woff2');
+}

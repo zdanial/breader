@@ -56,21 +56,21 @@ export function SelectionPopover({
     <div className="popover" ref={ref} style={style} role="status">
       <div className="popover-body">
         {status.state === 'loading' && <span className="muted">…</span>}
-        {status.state === 'done' && <span>{status.text}</span>}
+        {status.state === 'done' && <span className="popover-gloss">{status.text}</span>}
         {status.state === 'error' &&
           (status.code === 'no-key' ? (
             <a className="btn" href="#/settings">
-              Add your OpenAI key
+              add your key
             </a>
           ) : status.code === 'auth' ? (
             <a className="btn" href="#/settings">
-              Key rejected — check it
+              key rejected
             </a>
           ) : status.code === 'quota' ? (
-            <span className="muted">OpenAI account out of credits</span>
+            <span className="muted">out of credits</span>
           ) : (
             <button className="btn" onClick={() => setAttempt((a) => a + 1)}>
-              {status.code === 'offline' ? 'Offline — retry' : 'Failed — retry'}
+              {status.code === 'offline' ? 'offline — retry' : 'failed — retry'}
             </button>
           ))}
       </div>

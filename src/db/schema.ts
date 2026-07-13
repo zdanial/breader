@@ -49,7 +49,9 @@ export interface Settings {
   theme: 'system' | 'light' | 'dark'
   fontScale: number
   fontFamily: string
+  accentColor?: string // signal accent, drives --accent
   collapsedLangs?: string[] // library sections the user has folded shut
+  lastReadBookId?: string // the 'currently reading' book (live indicator)
 }
 
 export interface CoverImage {

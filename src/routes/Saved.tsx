@@ -43,14 +43,14 @@ export default function Saved() {
         <a className="icon-btn" href="#/" aria-label="Back">
           ‹
         </a>
-        <h1>Saved</h1>
+        <h1>saved</h1>
       </header>
 
-      <div className="seg" style={{ margin: '0 16px' }}>
+      <div className="tabs">
         {(['words', 'quotes', 'highlights'] as const).map((t) => (
           <button key={t} className={tab === t ? 'active' : ''} onClick={() => setTab(t)}>
-            {t[0].toUpperCase() + t.slice(1)}
-            {counts[t] != null && counts[t]! > 0 ? ` (${counts[t]})` : ''}
+            {t}
+            {counts[t] != null && counts[t]! > 0 ? ` ${counts[t]}` : ''}
           </button>
         ))}
       </div>

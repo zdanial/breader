@@ -23,6 +23,11 @@ export default function App() {
     return () => mq.removeEventListener('change', apply)
   }, [settings.theme])
 
+  // Accent is a global custom property so every component inherits it.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--accent', settings.accentColor ?? '#2e63e8')
+  }, [settings.accentColor])
+
   switch (route.name) {
     case 'reader':
       // key forces a fresh Reader per book so position state never leaks across books

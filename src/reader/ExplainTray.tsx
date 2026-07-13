@@ -4,12 +4,23 @@ import { explainSelection, type Lookup } from '../translation/wordTranslator'
 type TrayState = 'collapsed' | 'loading' | 'open' | 'error'
 
 /**
- * Bottom tray shown while a word/phrase is selected. Drag it up (or tap) to
- * run the deeper "explain" lookup and expand the result.
+ * Bottom tray shown while a word/phrase is selected: save/highlight actions,
+ * plus a handle you drag up (or tap) to run the deeper "explain" lookup.
  */
-export function ExplainTray({ lookup }: { lookup: Lookup }) {
+export function ExplainTray({
+  lookup,
+  isHighlighted,
+  onSaveWord,
+  onToggleHighlight,
+}: {
+  lookup: Lookup
+  isHighlighted: boolean
+  onSaveWord: () => Promise<void>
+  onToggleHighlight: () => Promise<void>
+}) {
   const [state, setState] = useState<TrayState>('collapsed')
   const [text, setText] = useState('')
+  const [saved, setSaved] = useState(false)
   const startY = useRef<number | null>(null)
 
   function expand() {
@@ -45,6 +56,23 @@ export function ExplainTray({ lookup }: { lookup: Lookup }) {
           {state === 'collapsed' ? 'Explain more' : 'Explanation'}
         </span>
       </button>
+      <div className="tray-actions">
+        <button
+          className="btn secondary"
+          disabled={saved}
+          onClick={() =>
+            void onSaveWord().then(() => {
+              setSaved(true)
+              setTimeout(() => setSaved(false), 1600)
+            })
+          }
+        >
+          {saved ? 'Saved ✓' : '⭐ Save word'}
+        </button>
+        <button className="btn secondary" onClick={() => void onToggleHighlight()}>
+          {isHighlighted ? 'Remove highlight' : '🖍 Highlight'}
+        </button>
+      </div>
       {state === 'loading' && <p className="muted tray-text">Thinking…</p>}
       {state === 'open' && <p className="tray-text">{text}</p>}
       {state === 'error' && (

@@ -57,6 +57,45 @@ export interface CoverImage {
   blob: Blob
 }
 
+// ── The bank: saved words, quotes, highlights ────────────────────────────────
+// Words and quotes are the reader's learning record: they keep a denormalized
+// book title and SURVIVE book deletion (bookId is stripped, jump-back disabled).
+// Highlights belong to the text itself and are removed with their book.
+
+export interface SavedWord {
+  id: string
+  text: string // word or phrase as selected
+  translation?: string // snapshot of the cached translation, if available
+  sentence: string // context sentence
+  targetLang: string
+  bookId?: string
+  bookTitle: string
+  createdAt: number
+}
+
+export interface SavedQuote {
+  id: string
+  text: string // the full sentence
+  translation?: string
+  targetLang: string
+  bookId?: string
+  bookTitle: string
+  author?: string
+  sentenceIndex: number
+  createdAt: number
+}
+
+export interface Highlight {
+  id: string
+  bookId: string
+  sentenceId: string // `${bookId}:${index}`
+  sentenceIndex: number
+  start: number // token indices, inclusive
+  end: number
+  text: string
+  createdAt: number
+}
+
 export interface StoredFile {
   bookId: string
   name: string
@@ -73,6 +112,9 @@ class BreaderDB extends Dexie {
   settings!: Table<Settings, string>
   files!: Table<StoredFile, string>
   covers!: Table<CoverImage, string>
+  savedWords!: Table<SavedWord, string>
+  savedQuotes!: Table<SavedQuote, string>
+  highlights!: Table<Highlight, string>
 
   constructor() {
     super('breader')
@@ -91,6 +133,12 @@ class BreaderDB extends Dexie {
     // v3: extracted cover images
     this.version(3).stores({
       covers: 'bookId',
+    })
+    // v4: word bank, quote bank, highlights
+    this.version(4).stores({
+      savedWords: 'id, createdAt, targetLang, bookId',
+      savedQuotes: 'id, createdAt, targetLang, bookId, [bookId+sentenceIndex]',
+      highlights: 'id, sentenceId, bookId',
     })
   }
 }

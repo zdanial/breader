@@ -3,6 +3,7 @@ import { useRoute } from './router'
 import { useSettings } from './db/settings'
 import Library from './routes/Library'
 import Reader from './routes/Reader'
+import Saved from './routes/Saved'
 import Settings from './routes/Settings'
 
 export default function App() {
@@ -28,6 +29,8 @@ export default function App() {
       return <Reader key={route.bookId} bookId={route.bookId} />
     case 'settings':
       return <Settings />
+    case 'saved':
+      return <Saved />
     default:
       return <Library />
   }

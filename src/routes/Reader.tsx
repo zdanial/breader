@@ -1,7 +1,16 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import {
+  addHighlight,
+  findExactHighlight,
+  quoteIdFor,
+  removeHighlight,
+  saveWord,
+  toggleQuote,
+} from '../db/bank'
 import { db } from '../db/schema'
 import { updateSettings, useSettings } from '../db/settings'
+import { translateWord, translatePhrase } from '../translation/wordTranslator'
 import { FONT_STACKS } from '../db/settings'
 import { ExplainTray } from '../reader/ExplainTray'
 import { SelectionPopover } from '../reader/SelectionPopover'
@@ -138,6 +147,62 @@ export default function Reader({ bookId }: { bookId: string }) {
 
   const selectionText = selection ? sliceTokens(tokens, selection.start, selection.end) : ''
 
+  // ── bank: highlights for this sentence + quote-bookmark state ──
+  const highlights = useLiveQuery(
+    () => (sentence ? db.highlights.where('sentenceId').equals(sentence.id).toArray() : []),
+    [sentence],
+  )
+  const quoteId = useLiveQuery(
+    () => (pos == null ? undefined : quoteIdFor(bookId, pos)),
+    [bookId, pos],
+  )
+
+  const exactHighlight = selection
+    ? findExactHighlight(highlights, selection.start, selection.end)
+    : undefined
+
+  const handleSaveWord = useCallback(async () => {
+    if (!book || !sentence || !selection) return
+    const text = sliceTokens(tokens, selection.start, selection.end)
+    const lookup = {
+      text,
+      sentence: sentence.text,
+      targetLang: book.targetLang,
+      model: settings.model,
+      apiKey: settings.openaiKey,
+      bookId: book.id,
+    }
+    // snapshot the translation — instant if the popover already fetched it
+    const translation = await (selection.start === selection.end
+      ? translateWord(lookup)
+      : translatePhrase(lookup)
+    ).catch(() => undefined)
+    await saveWord({
+      text,
+      translation,
+      sentence: sentence.text,
+      targetLang: book.targetLang,
+      bookId: book.id,
+      bookTitle: book.title,
+    })
+  }, [book, sentence, selection, tokens, settings.model, settings.openaiKey])
+
+  const handleToggleHighlight = useCallback(async () => {
+    if (!book || !sentence || !selection) return
+    if (exactHighlight) {
+      await removeHighlight(exactHighlight.id)
+    } else {
+      await addHighlight({
+        bookId: book.id,
+        sentenceId: sentence.id,
+        sentenceIndex: sentence.index,
+        start: selection.start,
+        end: selection.end,
+        text: sliceTokens(tokens, selection.start, selection.end),
+      })
+    }
+  }, [book, sentence, selection, exactHighlight, tokens])
+
   // keyboard navigation for desktop testing
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -181,6 +246,15 @@ export default function Reader({ bookId }: { bookId: string }) {
           <span className="reader-title">{book.title}</span>
         )}
         <button
+          className={quoteId ? 'icon-btn bookmarked' : 'icon-btn'}
+          aria-label={quoteId ? 'Remove quote from bank' : 'Save sentence as quote'}
+          onClick={() => {
+            if (sentence) void toggleQuote(book, sentence, settings.model)
+          }}
+        >
+          {quoteId ? '★' : '☆'}
+        </button>
+        <button
           className="icon-btn"
           aria-label="Smaller text"
           onClick={() => updateSettings({ fontScale: Math.max(0.7, +(scale - 0.1).toFixed(2)) })}
@@ -214,6 +288,7 @@ export default function Reader({ bookId }: { bookId: string }) {
                 lang={book.targetLang}
                 dir={book.dir}
                 selectedRange={selection}
+                highlightRanges={highlights}
                 onWordTap={onWordTap}
               />
             ))}
@@ -227,6 +302,7 @@ export default function Reader({ bookId }: { bookId: string }) {
                 lang={book.targetLang}
                 dir={book.dir}
                 selectedRange={selection}
+                highlightRanges={highlights}
                 onWordTap={onWordTap}
               />
             )}
@@ -318,6 +394,9 @@ export default function Reader({ bookId }: { bookId: string }) {
               apiKey: settings.openaiKey,
               bookId: book.id,
             }}
+            isHighlighted={!!exactHighlight}
+            onSaveWord={handleSaveWord}
+            onToggleHighlight={handleToggleHighlight}
           />
         </>
       )}

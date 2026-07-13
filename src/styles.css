@@ -4,6 +4,7 @@
 }
 
 :root[data-theme='light'] {
+  --hl: rgba(255, 196, 0, 0.35);
   --bg: #faf9f7;
   --fg: #1c1b22;
   --muted: #6f6e7a;
@@ -16,6 +17,7 @@
 }
 
 :root[data-theme='dark'] {
+  --hl: rgba(255, 196, 0, 0.22);
   --bg: #101014;
   --fg: #ecebf2;
   --muted: #8f8e9c;
@@ -458,6 +460,19 @@ p {
   background: var(--highlight);
 }
 
+.hl {
+  background: var(--hl);
+  border-radius: 4px;
+}
+
+.word.hl.selected {
+  background: var(--highlight); /* active selection wins over a highlight */
+}
+
+.icon-btn.bookmarked {
+  color: var(--accent);
+}
+
 .reader-footer {
   padding: 0 14px calc(14px + env(safe-area-inset-bottom));
 }
@@ -595,6 +610,95 @@ p {
   font-size: 0.92rem;
   line-height: 1.5;
   padding: 4px 0 10px;
+}
+
+.tray-actions {
+  display: flex;
+  gap: 10px;
+  padding-bottom: 10px;
+}
+
+.tray-actions .btn {
+  flex: 1;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+}
+
+/* ── saved bank ─────────────────────────────────────────────────────────── */
+
+.bank-list {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 16px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bank-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 8px 12px 14px;
+}
+
+.bank-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.bank-main.as-link {
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bank-main.as-link:disabled {
+  cursor: default;
+}
+
+.bank-term {
+  font-weight: 600;
+  font-family: var(--font-reading);
+}
+
+.hl-chip {
+  background: var(--hl);
+  border-radius: 4px;
+  padding: 0 4px;
+  align-self: flex-start;
+}
+
+.bank-quote {
+  font-family: var(--font-reading);
+  line-height: 1.4;
+}
+
+.bank-translation {
+  font-size: 0.9rem;
+}
+
+.bank-context {
+  font-size: 0.82rem;
+  color: var(--muted);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bank-meta {
+  font-size: 0.75rem;
+  color: var(--muted);
 }
 
 /* ── settings ───────────────────────────────────────────────────────────── */

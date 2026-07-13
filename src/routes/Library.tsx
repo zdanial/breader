@@ -152,6 +152,9 @@ export default function Library() {
     <div className="page">
       <header className="topbar">
         <h1>breader</h1>
+        <a className="icon-btn" href="#/saved" aria-label="Saved words and quotes">
+          ★
+        </a>
         <a className="icon-btn" href="#/settings" aria-label="Settings">
           ⚙︎
         </a>

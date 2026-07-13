@@ -5,11 +5,25 @@ import { db } from './schema'
 export async function deleteBook(bookId: string): Promise<void> {
   await db.transaction(
     'rw',
-    [db.books, db.sentences, db.chapters, db.files, db.translations, db.covers],
+    [
+      db.books,
+      db.sentences,
+      db.chapters,
+      db.files,
+      db.translations,
+      db.covers,
+      db.highlights,
+      db.savedWords,
+      db.savedQuotes,
+    ],
     async () => {
       await db.sentences.where('bookId').equals(bookId).delete()
       await db.chapters.where('bookId').equals(bookId).delete()
       await db.translations.where('bookId').equals(bookId).delete()
+      await db.highlights.where('bookId').equals(bookId).delete()
+      // the bank survives deletion — just detach so jump-back knows it's gone
+      await db.savedWords.where('bookId').equals(bookId).modify({ bookId: undefined })
+      await db.savedQuotes.where('bookId').equals(bookId).modify({ bookId: undefined })
       await db.files.delete(bookId)
       await db.covers.delete(bookId)
       await db.books.delete(bookId)

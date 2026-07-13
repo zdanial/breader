@@ -24,24 +24,32 @@ export function SentenceText({
   lang,
   dir,
   selectedRange,
+  highlightRanges,
   onWordTap,
 }: {
   tokens: WordToken[]
   lang: string
   dir: 'ltr' | 'rtl'
   selectedRange?: { start: number; end: number } | null
+  highlightRanges?: Array<{ start: number; end: number }>
   onWordTap?: (word: string, index: number, rect: DOMRect) => void
 }) {
   const range = selectedRange
+  const isHighlighted = (i: number) =>
+    highlightRanges?.some((h) => i >= h.start && i <= h.end) ?? false
   return (
     <p className="sentence" lang={lang} dir={dir}>
       {tokens.map((token, i) =>
         token.isWord ? (
           <span
             key={i}
-            className={
-              range && i >= range.start && i <= range.end ? 'word selected' : 'word'
-            }
+            className={[
+              'word',
+              isHighlighted(i) ? 'hl' : '',
+              range && i >= range.start && i <= range.end ? 'selected' : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
             onClick={
               onWordTap
                 ? (e) => onWordTap(token.text, i, e.currentTarget.getBoundingClientRect())
@@ -51,7 +59,9 @@ export function SentenceText({
             {token.text}
           </span>
         ) : (
-          <span key={i}>{token.text}</span>
+          <span key={i} className={isHighlighted(i) && isHighlighted(i + 1) ? 'hl' : undefined}>
+            {token.text}
+          </span>
         ),
       )}
     </p>

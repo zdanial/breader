@@ -1,8 +1,8 @@
 import { db, type Book, type Chapter, type Sentence } from '../db/schema'
 import { detectLanguage } from '../lang/detect'
 import { directionFor } from '../lang/direction'
+import { segmentParagraph } from '../segment/registry'
 import { pickParser } from './registry'
-import { segmentSentences } from './segmenter'
 import type { ParsedDoc } from './types'
 
 export interface ImportPreview {
@@ -37,7 +37,7 @@ export async function commitImport(
   preview.parsed.chapters.forEach((chapter, chapterIndex) => {
     chapters.push({ bookId, index: chapterIndex, title: chapter.title, startSentenceIndex: index })
     chapter.paragraphs.forEach((paragraph, paragraphIndex) => {
-      for (const text of segmentSentences(paragraph, opts.targetLang)) {
+      for (const text of segmentParagraph(paragraph, opts.targetLang)) {
         sentences.push({ id: `${bookId}:${index}`, bookId, index, chapterIndex, paragraphIndex, text })
         index++
       }

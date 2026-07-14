@@ -4,18 +4,20 @@ import { db, type Book, type Highlight, type Sentence } from './schema'
 import { getCached } from '../translation/cache'
 import { sentenceKey } from '../translation/sentenceTranslator'
 
-export async function saveWord(entry: {
+/** Save a multi-word reader selection to the quote bank. (Single words go to the
+ *  shared word bank via `saveWordToBank` in vocab/bank — DESIGN.md §11.) */
+export async function savePhraseQuote(entry: {
   text: string
   translation?: string
-  sentence: string
   targetLang: string
-  bookId: string
+  bookId?: string
   bookTitle: string
+  author?: string
+  sentenceIndex: number
 }): Promise<void> {
-  await db.savedWords.add({ id: crypto.randomUUID(), createdAt: Date.now(), ...entry })
+  await db.savedQuotes.add({ id: crypto.randomUUID(), createdAt: Date.now(), ...entry })
 }
 
-export const deleteSavedWord = (id: string) => db.savedWords.delete(id)
 export const deleteSavedQuote = (id: string) => db.savedQuotes.delete(id)
 
 /** Is the current sentence already in the quote bank? Returns its id if so. */

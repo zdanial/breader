@@ -9,7 +9,7 @@ import { PassageReader } from '../reader/PassageReader'
 import { navigate } from '../router'
 import { SpeakerIcon } from '../tts/SpeakerButton'
 import { useSpeak } from '../tts/useSpeak'
-import { recordEncounter } from '../vocab/bank'
+import { recordResult, learnGrade, type Grade } from '../vocab/bank'
 import { Button } from '../ui'
 
 const arraysEqual = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
@@ -87,7 +87,6 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
   const finish = useCallback(async () => {
     setCompleted(true)
     const accuracy = gradedCount > 0 ? firstTry.current / gradedCount : 1
-    const xp = 10 + firstTry.current
     if (!lesson) return
     const prev = await db.learnProgress.get(lessonId)
     await db.learnProgress.put({
@@ -101,13 +100,11 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
     })
     const stats = (await db.learnStats.get('singleton')) ?? {
       id: 'singleton' as const,
-      xp: 0,
       totalExercises: 0,
       totalCorrect: 0,
       totalTimeMs: 0,
       activeDays: [],
     }
-    stats.xp += xp
     stats.totalExercises += gradedCount
     stats.totalCorrect += firstTry.current
     stats.totalTimeMs += Date.now() - startedAt.current
@@ -118,8 +115,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
     // per-language/day rollup for over-time + by-language stats
     const lang = course?.targetLang ?? lesson.courseId
     const did = `${lang}:${day}`
-    const d = (await db.learnDaily.get(did)) ?? { id: did, lang, day, xp: 0, exercises: 0, correct: 0, timeMs: 0 }
-    d.xp += xp
+    const d = (await db.learnDaily.get(did)) ?? { id: did, lang, day, exercises: 0, correct: 0, timeMs: 0 }
     d.exercises += gradedCount
     d.correct += firstTry.current
     d.timeMs += Date.now() - startedAt.current
@@ -136,25 +132,29 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
     setDone((d) => new Set(d).add(idx))
   }, [])
 
-  // record target words into the shared word bank
+  // record target words into the shared word bank at the derived SM-2 grade
   const recordWords = useCallback(
-    (words: string[], correct: boolean) => {
+    (words: string[], g: Grade) => {
       const lang = course?.targetLang
-      if (!lang) return
+      if (!lang || !lesson) return
       for (const w of words) {
         wordsSeen.current.add(w.toLowerCase())
-        void recordEncounter({ lang, word: w, source: 'learn', correct })
+        void recordResult({
+          lang, word: w, grade: g,
+          origin: { channel: 'learn', courseId: lesson.courseId, unitId: lesson.unitId },
+        })
       }
     },
-    [course],
+    [course, lesson],
   )
 
   const grade = useCallback(
     (correct: boolean, targetWords: string[]) => {
       if (itemIndex == null) return
-      recordWords(targetWords, correct)
+      const wasRequeued = everWrong.current.has(itemIndex)
+      recordWords(targetWords, learnGrade(correct, wasRequeued))
       if (correct) {
-        if (!everWrong.current.has(itemIndex)) firstTry.current += 1
+        if (!wasRequeued) firstTry.current += 1
         markDone(itemIndex)
         setPhase('correct')
       } else {
@@ -657,7 +657,7 @@ function MatchView({
       const m = new Set(matched).add(i)
       setMatched(m)
       setSel(null)
-      if (lang) void recordEncounter({ lang, word: item.pairs[i][0], source: 'learn', correct: true })
+      if (lang) void recordResult({ lang, word: item.pairs[i][0], grade: 2 })
       if (m.size === item.pairs.length) onComplete()
     } else {
       onMistake()

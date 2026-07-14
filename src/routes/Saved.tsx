@@ -1,7 +1,8 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
-import { deleteSavedQuote, deleteSavedWord, removeHighlight } from '../db/bank'
+import { deleteSavedQuote, removeHighlight } from '../db/bank'
 import { db } from '../db/schema'
+import { deleteVocab, deriveStatus } from '../vocab/bank'
 import { navigate } from '../router'
 
 type Tab = 'words' | 'quotes' | 'highlights'
@@ -22,7 +23,15 @@ async function jumpTo(bookId: string | undefined, sentenceIndex: number) {
 
 export default function Saved() {
   const [tab, setTab] = useState<Tab>('words')
-  const words = useLiveQuery(() => db.savedWords.orderBy('createdAt').reverse().toArray(), [])
+  // saved single words now live in the shared word bank (vocab)
+  const words = useLiveQuery(
+    () =>
+      db.vocab
+        .filter((v) => v.sources.includes('saved'))
+        .toArray()
+        .then((rows) => rows.sort((a, b) => b.lastSeenAt - a.lastSeenAt)),
+    [],
+  )
   const quotes = useLiveQuery(() => db.savedQuotes.orderBy('createdAt').reverse().toArray(), [])
   const highlights = useLiveQuery(
     () => db.highlights.orderBy('id').toArray().then((h) => h.sort((a, b) => b.createdAt - a.createdAt)),
@@ -64,21 +73,24 @@ export default function Saved() {
             {words?.map((w) => (
               <div key={w.id} className="bank-item">
                 <div className="bank-main">
-                  <span className="bank-term" lang={w.targetLang}>
-                    {w.text}
+                  <span className="bank-term" lang={w.lang}>
+                    {w.surface ?? w.lemma}
                   </span>
-                  {w.translation && <span className="bank-translation">{w.translation}</span>}
-                  <span className="bank-context" lang={w.targetLang}>
-                    {w.sentence}
-                  </span>
+                  {w.gloss && <span className="bank-translation">{w.gloss}</span>}
+                  {w.origin?.context && (
+                    <span className="bank-context" lang={w.lang}>
+                      {w.origin.context}
+                    </span>
+                  )}
                   <span className="bank-meta">
-                    {langName(w.targetLang)} · {w.bookTitle}
+                    {langName(w.lang)} · {deriveStatus(w)}
+                    {w.origin?.bookId ? ` · ${bookTitle(w.origin.bookId)}` : ''}
                   </span>
                 </div>
                 <button
                   className="icon-btn"
-                  aria-label={`Delete ${w.text}`}
-                  onClick={() => void deleteSavedWord(w.id)}
+                  aria-label={`Delete ${w.surface ?? w.lemma}`}
+                  onClick={() => void deleteVocab(w.id)}
                 >
                   ✕
                 </button>

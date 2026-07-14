@@ -5,7 +5,7 @@ import {
   findExactHighlight,
   quoteIdFor,
   removeHighlight,
-  saveWord,
+  savePhraseQuote,
   toggleQuote,
 } from '../db/bank'
 import { db } from '../db/schema'
@@ -21,7 +21,7 @@ import { useOrientation } from '../reader/useOrientation'
 import { useSentenceTranslation } from '../reader/useSentenceTranslation'
 import { SpeakerIcon } from '../tts/SpeakerButton'
 import { useSpeak } from '../tts/useSpeak'
-import { recordEncounter } from '../vocab/bank'
+import { recordEncounter, saveWordToBank } from '../vocab/bank'
 import { ProgressBar, Rule } from '../ui'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -202,16 +202,25 @@ export default function Reader({ bookId }: { bookId: string }) {
       ? translateWord(lookup)
       : translatePhrase(lookup)
     ).catch(() => undefined)
-    await saveWord({
-      text,
-      translation,
-      sentence: sentence.text,
-      targetLang: book.targetLang,
-      bookId: book.id,
-      bookTitle: book.title,
-    })
     if (selection.start === selection.end) {
-      void recordEncounter({ lang: book.targetLang, word: text, gloss: translation, source: 'saved' })
+      // single word → shared word bank (enrolls as a tracked review card)
+      await saveWordToBank({
+        lang: book.targetLang,
+        word: text,
+        gloss: translation,
+        origin: { channel: 'reader', bookId: book.id, context: sentence.text },
+      })
+    } else {
+      // multi-word selection → quote bank
+      await savePhraseQuote({
+        text,
+        translation,
+        targetLang: book.targetLang,
+        bookId: book.id,
+        bookTitle: book.title,
+        author: book.author,
+        sentenceIndex: sentence.index,
+      })
     }
   }, [book, sentence, selection, tokens, settings.model, settings.openaiKey])
 
@@ -433,13 +442,16 @@ export default function Reader({ bookId }: { bookId: string }) {
             kind={selection.start === selection.end ? 'word' : 'phrase'}
             anchor={selection.rect}
             onResolved={(gloss) => {
-              // feed the shared word bank on single-word glosses
+              // feed the shared word bank on single-word look-ups; a 2nd look-up
+              // promotes the word to a tracked review card (DESIGN.md §11)
               if (selection.start === selection.end) {
                 void recordEncounter({
                   lang: book.targetLang,
                   word: selectionText,
                   gloss,
                   source: 'reader',
+                  lookup: true,
+                  origin: { channel: 'reader', bookId: book.id, context: sentence.text },
                 })
               }
             }}

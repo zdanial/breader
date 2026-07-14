@@ -564,41 +564,132 @@ p {
   font: 700 13px var(--font-sans);
   color: var(--fg);
 }
-.lesson-path {
+/* streak pill */
+.streak-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid var(--border);
+  padding: 5px 9px;
+  font: 700 13px var(--font-sans);
+  color: var(--fg);
+}
+.streak-dot {
+  width: 9px;
+  height: 9px;
+  background: var(--signal-green);
+}
+
+/* unit status label */
+.unit-status {
+  margin-left: auto;
+  font: 700 11px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+}
+.unit-status.done {
+  color: var(--signal-green);
+}
+.unit-status.progress {
+  color: var(--muted);
+}
+
+/* continue / resume card */
+.continue-card {
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  padding: 18px 18px 16px;
+  cursor: pointer;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 4px;
 }
-.lesson-bubble {
+.continue-eyebrow {
+  font: 700 11px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--muted);
+}
+.continue-title {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  line-height: 1.05;
+  color: var(--fg);
+}
+.continue-foot {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+.continue-resume {
+  font: 700 15px var(--font-sans);
+  color: var(--fg);
+}
+.continue-ghost {
+  position: absolute;
+  right: 12px;
+  bottom: -8px;
+  font-family: var(--font-serif);
+  font-size: 92px;
+  line-height: 1;
+  color: var(--fg);
+  opacity: 0.06;
+  pointer-events: none;
+}
+
+/* lesson rows with left signal bar */
+.lesson-rows {
+  display: flex;
+  flex-direction: column;
+}
+.lesson-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 14px;
+  gap: 14px;
+  padding: 16px 4px 16px 0;
+  border-bottom: 1px solid var(--border);
+  background: none;
   cursor: pointer;
   text-align: left;
   color: var(--fg);
 }
-.lesson-bubble.locked {
-  opacity: 0.45;
+.lesson-row:last-child {
+  border-bottom: none;
+}
+.lesson-row .signal {
+  align-self: stretch;
+  width: 4px;
+  flex: none;
+  background: var(--signal-green);
+  margin-right: 4px;
+}
+.lesson-row .lesson-name {
+  font: 600 17px var(--font-sans);
+  flex: 1;
+}
+.lesson-row.locked {
   cursor: default;
 }
-.lesson-bubble.done {
-  border-color: var(--accent);
+.lesson-row.locked .signal {
+  background: var(--border);
 }
-.lesson-index {
-  font-family: var(--font-serif);
-  font-size: 18px;
-  min-width: 26px;
+.lesson-row.locked .lesson-name {
   color: var(--muted);
+  opacity: 0.65;
 }
-.lesson-bubble.done .lesson-index {
-  color: var(--accent);
+.lesson-row.current {
+  background: color-mix(in srgb, var(--signal-green) 10%, transparent);
+  padding-left: 12px;
+  margin-left: -12px;
 }
-.lesson-name {
-  font: 600 14px var(--font-sans);
+.row-action {
+  font: 700 14px var(--font-sans);
+  color: var(--signal-green);
 }
 
 /* ── library ────────────────────────────────────────────────────────────── */

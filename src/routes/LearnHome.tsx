@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react'
 import { db, type LearnCourse, type LearnLesson, type LearnUnit } from '../db/schema'
 import { importLearnFile } from '../learn/importCourse'
 import { deleteCourse, resetCourseProgress } from '../learn/ops'
+import { computeStreak } from '../learn/progress'
 import { navigate } from '../router'
 import { Button, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
 
@@ -15,18 +16,19 @@ export default function LearnHome() {
   const units = useLiveQuery(() => db.learnUnits.toArray(), [])
   const lessons = useLiveQuery(() => db.learnLessons.toArray(), [])
   const progress = useLiveQuery(() => db.learnProgress.toArray(), [])
+  const stats = useLiveQuery(() => db.learnStats.get('singleton'), [])
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [menuCourse, setMenuCourse] = useState<LearnCourse | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
-  const doneLessons = useMemo(
+  const done = useMemo(
     () => new Set((progress ?? []).filter((p) => p.completed).map((p) => p.lessonId)),
     [progress],
   )
+  const streak = computeStreak(stats?.activeDays ?? [])
 
-  // courses grouped by target language
   const byLang = useMemo(() => {
     const m = new Map<string, LearnCourse[]>()
     for (const c of courses ?? []) {
@@ -46,8 +48,7 @@ export default function LearnHome() {
     setBusy(true)
     setError(null)
     try {
-      const r = await importLearnFile(file)
-      void r
+      await importLearnFile(file)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Import failed')
     } finally {
@@ -59,9 +60,10 @@ export default function LearnHome() {
     <div className="page">
       <header className="topbar">
         <Wordmark />
-        {courses && courses.length > 0 && (
-          <a className="icon-btn" href="#/learn-stats" aria-label="Stats">
-            ▰
+        {stats && (stats.activeDays?.length ?? 0) > 0 && (
+          <a className="streak-pill" href="#/learn-stats" aria-label="Stats">
+            <span className="streak-dot" />
+            {streak}d
           </a>
         )}
         <a className="icon-btn" href="#/settings" aria-label="Settings">
@@ -73,8 +75,7 @@ export default function LearnHome() {
       <main className="shelf">
         {courses?.length === 0 && (
           <p className="empty">
-            no courses yet —{' '}
-            <a href="#/learn-new">make one with your AI</a>, or import a unit file.
+            no courses yet — <a href="#/learn-new">make one with your AI</a>, or import a unit file.
           </p>
         )}
         {error && (
@@ -92,12 +93,10 @@ export default function LearnHome() {
             <Rule />
 
             {langCourses.map((course) => {
-              // flattened ordered lesson list → sequential unlock
-              const ordered = unitsOf(course.id).flatMap((u) => lessonsOf(u.id))
-              const firstLocked = ordered.findIndex((l) => !doneLessons.has(l.id))
-              const unlockedUpto = firstLocked === -1 ? ordered.length : firstLocked
-              const isUnlocked = (lessonId: string) =>
-                ordered.findIndex((l) => l.id === lessonId) <= unlockedUpto
+              const us = unitsOf(course.id)
+              const ordered = us.flatMap((u) => lessonsOf(u.id).map((l) => ({ l, u })))
+              const currentPos = ordered.findIndex((x) => !done.has(x.l.id))
+              const current = currentPos >= 0 ? ordered[currentPos] : null
 
               return (
                 <div key={course.id} className="course" dir={course.dir}>
@@ -114,33 +113,68 @@ export default function LearnHome() {
                       ···
                     </button>
                   </div>
-                  {unitsOf(course.id).map((unit) => (
-                    <div key={unit.id} className="unit">
-                      <div className="unit-head" dir="ltr">
-                        <span className="unit-numeral">{pad2(unit.index)}</span>
-                        <span className="unit-title">{unit.title}</span>
+
+                  {/* continue card — the current lesson */}
+                  {current && (
+                    <button
+                      className="continue-card"
+                      dir="ltr"
+                      onClick={() => navigate(`/lesson/${current.l.id}`)}
+                    >
+                      <span className="continue-eyebrow">continue · unit {pad2(current.u.index)}</span>
+                      <span className="continue-title" dir="auto">
+                        {current.l.title}
+                      </span>
+                      <span className="continue-foot">
+                        <span className="muted">{current.u.title}</span>
+                        <span className="continue-resume">resume →</span>
+                      </span>
+                      <span className="continue-ghost">{pad2(current.u.index)}</span>
+                    </button>
+                  )}
+
+                  {us.map((unit) => {
+                    const uls = lessonsOf(unit.id)
+                    const allDone = uls.length > 0 && uls.every((l) => done.has(l.id))
+                    const hasCurrent = current?.u.id === unit.id
+                    const someDone = uls.some((l) => done.has(l.id))
+                    const status = allDone ? 'done' : hasCurrent || someDone ? 'progress' : null
+                    return (
+                      <div key={unit.id} className="unit">
+                        <div className="unit-head" dir="ltr">
+                          <span className="unit-numeral">{pad2(unit.index)}</span>
+                          <span className="unit-title">{unit.title}</span>
+                          {status && (
+                            <span className={`unit-status ${status}`}>
+                              {status === 'done' ? 'done' : 'in progress'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="lesson-rows">
+                          {uls.map((lesson) => {
+                            const isDone = done.has(lesson.id)
+                            const isCurrent = current?.l.id === lesson.id
+                            const state = isDone ? 'done' : isCurrent ? 'current' : 'locked'
+                            return (
+                              <button
+                                key={lesson.id}
+                                className={`lesson-row ${state}`}
+                                dir="ltr"
+                                disabled={state === 'locked'}
+                                onClick={() => navigate(`/lesson/${lesson.id}`)}
+                              >
+                                <span className="signal" />
+                                <span className="lesson-name" dir="auto">
+                                  {lesson.title}
+                                </span>
+                                {isCurrent && <span className="row-action">start →</span>}
+                              </button>
+                            )
+                          })}
+                        </div>
                       </div>
-                      <div className="lesson-path">
-                        {lessonsOf(unit.id).map((lesson) => {
-                          const done = doneLessons.has(lesson.id)
-                          const open = done || isUnlocked(lesson.id)
-                          return (
-                            <button
-                              key={lesson.id}
-                              className={`lesson-bubble${done ? ' done' : ''}${open ? '' : ' locked'}`}
-                              disabled={!open}
-                              onClick={() => navigate(`/lesson/${lesson.id}`)}
-                            >
-                              <span className="lesson-index">{done ? '✓' : pad2(lesson.index)}</span>
-                              <span className="lesson-name" dir="ltr">
-                                {lesson.title}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )
             })}
@@ -159,13 +193,7 @@ export default function LearnHome() {
           e.target.value = ''
         }}
       />
-      <div
-        style={{
-          padding: '0 20px calc(20px + env(safe-area-inset-bottom))',
-          display: 'flex',
-          gap: 10,
-        }}
-      >
+      <div style={{ padding: '0 20px calc(20px + env(safe-area-inset-bottom))', display: 'flex', gap: 10 }}>
         <Button variant="secondary" onClick={() => navigate('/learn-new')} style={{ flex: 1 }}>
           new course
         </Button>

@@ -20,7 +20,8 @@ const SCHEMA = `{
             { "type": "build", "prompt": "...", "tiles": ["...","..."], "answer": ["...","..."] },
             { "type": "match", "pairs": [["<target>","<base>"], ["<target>","<base>"]] },
             { "type": "blank", "prompt": "... ___ ...", "translation": "...", "choices": ["...","..."], "answer": 0 },
-            { "type": "listen", "text": "<target sentence to speak>", "tiles": ["...","..."], "answer": ["...","..."], "translation": "..." }
+            { "type": "listen", "text": "<target sentence to speak>", "tiles": ["...","..."], "answer": ["...","..."], "translation": "..." },
+            { "type": "read", "title": "...", "text": "<a short poem or story in the target language, newlines allowed>", "translation": "..." }
           ] } ] } ]
 }`
 
@@ -31,6 +32,7 @@ const ITEM_UX = `How each item appears to the learner (write content that fits):
 - "match": two columns the learner pairs (target ↔ base); 3–5 pairs.
 - "blank": a sentence with a gap; the learner picks the word that fills it.
 - "listen": the learner hears the target sentence "text" spoken aloud (text-to-speech) and rebuilds it from word tiles; "tiles" = the correct words PLUS distractor tiles, "answer" = the correct ordered words. Use short, clearly pronounceable target sentences.
+- "read": a writing sample (a short poem or story) in the target language, shown in a reading view — the learner taps words for glosses, plays it aloud, and can reveal a "translation". No input. Use for immersion/context at the end of a unit. Keep it level-appropriate; newlines are allowed for poems.
 Any target word is tappable for a gloss, so include a "glossary" for the vocabulary used.`
 
 export function buildGeneratorPrompt(opts: {

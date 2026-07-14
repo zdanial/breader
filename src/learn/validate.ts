@@ -32,6 +32,9 @@ function validateItem(it: any, where: string): string | null {
     case 'teach':
       if (!isStr(it.title) || !isStr(it.body)) return `${where}: teach needs title + body`
       return null
+    case 'read':
+      if (!isStr(it.text)) return `${where}: read needs a text passage`
+      return null
     case 'choice':
     case 'blank':
       if (!isStr(it.prompt)) return `${where}: ${it.type} needs a prompt`

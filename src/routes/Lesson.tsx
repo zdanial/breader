@@ -4,6 +4,7 @@ import { db, type LessonItem } from '../db/schema'
 import { useSettings } from '../db/settings'
 import { GlossChip } from '../learn/GlossChip'
 import type { GlossSource } from '../learn/gloss'
+import { tokenize } from '../reader/SentenceText'
 import { navigate } from '../router'
 import { SpeakerIcon } from '../tts/SpeakerButton'
 import { useSpeak } from '../tts/useSpeak'
@@ -35,7 +36,10 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
   const settings = useSettings()
 
   const items = lesson?.items ?? []
-  const gradedCount = useMemo(() => items.filter((i) => i.type !== 'teach').length, [items])
+  const gradedCount = useMemo(
+    () => items.filter((i) => i.type !== 'teach' && i.type !== 'read').length,
+    [items],
+  )
 
   // queue of item indices; wrong graded items get re-queued to the end
   const [queue, setQueue] = useState<number[]>([])
@@ -199,6 +203,9 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
         {item?.type === 'teach' && (
           <TeachView item={item} dir={dir} onGloss={openGloss} />
         )}
+        {item?.type === 'read' && (
+          <ReadView key={itemIndex} item={item} dir={dir} lang={course.targetLang} onGloss={openGloss} />
+        )}
         {item?.type === 'choice' && (
           <ChoiceView
             item={item}
@@ -247,7 +254,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
       )}
 
       <footer className="lesson-foot">
-        {item?.type === 'teach' && (
+        {(item?.type === 'teach' || item?.type === 'read') && (
           <Button onClick={() => { markDone(itemIndex!); advance() }} style={{ width: '100%' }}>
             continue
           </Button>
@@ -298,6 +305,55 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
 // ── item views ───────────────────────────────────────────────────────────────
 
 type GlossFn = (word: string, e: React.PointerEvent | React.MouseEvent) => void
+
+// Writing sample (poem/story) with the reader UX — tap words for gloss, play audio,
+// reveal translation. Non-graded.
+function ReadView({
+  item, dir, lang, onGloss,
+}: {
+  item: Extract<LessonItem, { type: 'read' }>
+  dir: 'ltr' | 'rtl'; lang: string; onGloss: GlossFn
+}) {
+  const { say, hasKey } = useSpeak()
+  const [showTr, setShowTr] = useState(false)
+  return (
+    <div className="ex read-ex">
+      {item.title && <h2 className="teach-title">{item.title}</h2>}
+      {hasKey && (
+        <button className="listen-play" onClick={() => say(item.text)}>
+          <SpeakerIcon size={18} /> listen
+        </button>
+      )}
+      <div className="passage" dir={dir}>
+        {item.text.split(/\n/).map((line, i) =>
+          line.trim() === '' ? (
+            <span key={i} className="passage-gap" />
+          ) : (
+            <p key={i} className="passage-line" dir="auto">
+              {tokenize(line, lang).map((t, j) =>
+                t.isWord ? (
+                  <span key={j} className="pw" onClick={(e) => onGloss(t.text, e)}>
+                    {t.text}
+                  </span>
+                ) : (
+                  <span key={j}>{t.text}</span>
+                ),
+              )}
+            </p>
+          ),
+        )}
+      </div>
+      {item.translation && (
+        <>
+          <button className="btn secondary" onClick={() => setShowTr((s) => !s)}>
+            {showTr ? 'hide translation' : 'show translation'}
+          </button>
+          {showTr && <p className="passage-tr">{item.translation}</p>}
+        </>
+      )}
+    </div>
+  )
+}
 
 function TeachView({ item, dir, onGloss }: { item: Extract<LessonItem, { type: 'teach' }>; dir: 'ltr' | 'rtl'; onGloss: GlossFn }) {
   return (

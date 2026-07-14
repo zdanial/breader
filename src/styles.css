@@ -385,6 +385,37 @@ p {
   gap: 10px;
 }
 
+/* writing sample (read) */
+.read-ex {
+  gap: 14px;
+}
+.passage {
+  font-family: var(--font-reading);
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: var(--fg);
+}
+.passage-line {
+  margin: 0 0 6px;
+}
+.passage-gap {
+  display: block;
+  height: 12px;
+}
+.passage .pw {
+  cursor: pointer;
+}
+.passage .pw:active {
+  background: var(--sel);
+  color: var(--sel-fg);
+}
+.passage-tr {
+  font: 400 14px/1.55 var(--font-sans);
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
 /* teaching screen */
 .teach {
   display: flex;

@@ -153,6 +153,9 @@ export type LessonItem =
   | { type: 'blank'; prompt: string; choices: string[]; answer: number; translation?: string; note?: string }
   // listen: hear the spoken target `text`, rebuild it from `tiles` (graded like build)
   | { type: 'listen'; text: string; tiles: string[]; answer: string[]; accept?: string[][]; translation?: string; note?: string }
+  // read: a writing sample (poem/story) read with the reader UX — tap words to gloss,
+  // play audio, optional translation. No input (like teach).
+  | { type: 'read'; title?: string; text: string; translation?: string; note?: string }
 
 export interface LearnLesson {
   id: string

@@ -9,9 +9,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/apple-touch-icon.png'],
       manifest: {
-        name: 'breader',
-        short_name: 'breader',
-        description: 'Bilingual reader for language learning',
+        name: 'Panglossa',
+        short_name: 'Panglossa',
+        description: 'Bilingual reader and language-learning app',
         display: 'standalone',
         orientation: 'any',
         background_color: '#101014',

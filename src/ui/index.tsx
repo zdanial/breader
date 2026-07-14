@@ -6,7 +6,7 @@ import type { ButtonHTMLAttributes, ReactNode } from 'react'
 export function Wordmark({ size = 30 }: { size?: number }) {
   return (
     <span className="wordmark" style={{ fontSize: size }}>
-      breader
+      Panglossa
     </span>
   )
 }

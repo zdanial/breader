@@ -2,11 +2,12 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { clearBookTranslations, deleteBook } from '../db/books'
 import { db, type Book } from '../db/schema'
-import { updateSettings, useSettings } from '../db/settings'
+import { useLanguages } from '../db/languages'
+import { useSettings } from '../db/settings'
 import { commitImport, prepareImport, type ImportPreview } from '../parsing/importBook'
 import { acceptedExtensions } from '../parsing/registry'
 import { navigate } from '../router'
-import { Button, ProgressBar, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
+import { Button, LanguageBar, ProgressBar, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
 
 const LANGS: Array<[string, string]> = [
   ['de', 'German'],
@@ -20,8 +21,6 @@ const LANGS: Array<[string, string]> = [
 
 const langName = (code: string) =>
   new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
-
-const pad2 = (n: number) => String(n).padStart(2, '0')
 
 /** Deterministic pleasant cover color from the title. */
 function colorFor(title: string): string {
@@ -82,10 +81,13 @@ function BookCover({
   )
 }
 
+const prim = (l: string) => (l ?? '').toLowerCase().split('-')[0]
+
 export default function Library() {
   const books = useLiveQuery(() => db.books.orderBy('createdAt').reverse().toArray(), [])
   const coverRows = useLiveQuery(() => db.covers.toArray(), [])
   const settings = useSettings()
+  const { langs, active, setActive } = useLanguages()
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [title, setTitle] = useState('')
@@ -105,23 +107,11 @@ export default function Library() {
   )
   useEffect(() => () => coverUrls.forEach((url) => URL.revokeObjectURL(url)), [coverUrls])
 
-  const sections = useMemo(() => {
-    const byLang = new Map<string, Book[]>()
-    for (const book of books ?? []) {
-      const list = byLang.get(book.targetLang) ?? []
-      list.push(book)
-      byLang.set(book.targetLang, list)
-    }
-    return [...byLang.entries()].sort((a, b) => langName(a[0]).localeCompare(langName(b[0])))
-  }, [books])
-
-  const collapsed = settings.collapsedLangs ?? []
-  const toggleSection = (code: string) =>
-    updateSettings({
-      collapsedLangs: collapsed.includes(code)
-        ? collapsed.filter((c) => c !== code)
-        : [...collapsed, code],
-    })
+  // books in the active language (the bottom bar scopes the shelf)
+  const shownBooks = useMemo(
+    () => (books ?? []).filter((b) => prim(b.targetLang) === active),
+    [books, active],
+  )
 
   function openMenu(book: Book) {
     setMenuBook(book)
@@ -137,7 +127,11 @@ export default function Library() {
       setPreview(p)
       setTitle(p.parsed.title)
       setAuthor(p.parsed.author ?? '')
-      setLang(p.suggestedLang && LANGS.some(([c]) => c === p.suggestedLang) ? p.suggestedLang : 'de')
+      setLang(
+        p.suggestedLang && LANGS.some(([c]) => c === p.suggestedLang)
+          ? p.suggestedLang
+          : (active ?? 'de'),
+      )
       setDetected(!!p.suggestedLang)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read file')
@@ -174,65 +168,47 @@ export default function Library() {
       </header>
       <SectionTabs active="read" />
 
-      <main className="shelf">
+      <main className="shelf has-langbar">
         {books && !settings.openaiKey && (
           <p className="note" style={{ textAlign: 'center' }}>
             add your OpenAI key in <a href="#/settings">settings</a> to enable tap-to-translate.
           </p>
         )}
-        {books?.length === 0 && <p className="empty">no books yet — import one to start reading.</p>}
         {error && !preview && (
           <p className="error-text" style={{ textAlign: 'center' }}>
             {error}
           </p>
         )}
+        {parsing && <p className="note" style={{ textAlign: 'center' }}>reading…</p>}
 
-        {sections.map(([code, sectionBooks]) => {
-          const isCollapsed = collapsed.includes(code)
-          return (
-            <section key={code} className="lang-section">
-              <button className="lang-header" onClick={() => toggleSection(code)}>
-                <span className="label">
-                  <span className={isCollapsed ? 'chevron' : 'chevron open'}>›</span>
-                  {langName(code).toLowerCase()}
-                </span>
-                <span className="lang-count">{pad2(sectionBooks.length)}</span>
-              </button>
-              <Rule />
-              {!isCollapsed && (
-                <div className="cover-grid">
-                  {sectionBooks.map((book) => (
-                    <BookCover
-                      key={book.id}
-                      book={book}
-                      coverUrl={coverUrls.get(book.id)}
-                      live={book.id === settings.lastReadBookId}
-                      onOpen={() => navigate(`/book/${book.id}`)}
-                      onMenu={() => openMenu(book)}
-                    />
-                  ))}
-                </div>
-              )}
-            </section>
-          )
-        })}
-
-        {books && books.length > 0 && (
-          <div className="import-bar">
-            <Button onClick={() => fileRef.current?.click()} disabled={parsing}>
-              {parsing ? 'reading…' : '+ import book'}
-            </Button>
+        {langs.length === 0 ? (
+          <p className="empty">no books yet — tap ＋ below to import one and start reading.</p>
+        ) : shownBooks.length === 0 ? (
+          <p className="empty">
+            no books in {active ? langName(active) : 'this language'} yet — tap ＋ to import one.
+          </p>
+        ) : (
+          <div className="cover-grid">
+            {shownBooks.map((book) => (
+              <BookCover
+                key={book.id}
+                book={book}
+                coverUrl={coverUrls.get(book.id)}
+                live={book.id === settings.lastReadBookId}
+                onOpen={() => navigate(`/book/${book.id}`)}
+                onMenu={() => openMenu(book)}
+              />
+            ))}
           </div>
         )}
       </main>
 
-      {books?.length === 0 && (
-        <div style={{ padding: '0 20px calc(20px + env(safe-area-inset-bottom))' }}>
-          <Button onClick={() => fileRef.current?.click()} disabled={parsing} style={{ width: '100%' }}>
-            {parsing ? 'reading…' : '+ import book'}
-          </Button>
-        </div>
-      )}
+      <LanguageBar
+        langs={langs}
+        active={active}
+        onSelect={setActive}
+        onAdd={() => fileRef.current?.click()}
+      />
 
       <input
         ref={fileRef}

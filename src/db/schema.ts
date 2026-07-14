@@ -54,6 +54,8 @@ export interface Settings {
   ttsVoice?: string // OpenAI TTS voice
   collapsedLangs?: string[] // library sections the user has folded shut
   lastReadBookId?: string // the 'currently reading' book (live indicator)
+  activeLang?: string // the language tab selected in the bottom bar
+  languages?: string[] // languages explicitly added (may have no content yet)
 }
 
 export interface CoverImage {

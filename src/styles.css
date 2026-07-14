@@ -262,6 +262,56 @@ p {
   border-bottom-color: var(--fg);
 }
 
+/* ── bottom language bar ─────────────────────────────────────────────────── */
+.langbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: flex;
+  align-items: stretch;
+  background: var(--bg);
+  border-top: var(--rule);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.langbar-scroll {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.langbar-scroll::-webkit-scrollbar {
+  display: none;
+}
+.langbar-tab {
+  flex: 0 0 auto;
+  min-height: 52px;
+  padding: 0 20px;
+  font: 700 14px var(--font-sans);
+  color: var(--muted);
+  white-space: nowrap;
+  border-top: 3px solid transparent;
+  margin-top: -3px; /* sit the accent over the bar's top rule */
+}
+.langbar-tab.active {
+  color: var(--fg);
+  border-top-color: var(--accent);
+}
+.langbar-add {
+  flex: 0 0 auto;
+  width: 56px;
+  min-height: 52px;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--fg);
+  border-left: 1px solid var(--border);
+}
+/* let scrolling content clear the fixed bar */
+.has-langbar {
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+
 /* ── lesson player ──────────────────────────────────────────────────────── */
 .lesson-top {
   gap: 14px;

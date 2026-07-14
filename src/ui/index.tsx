@@ -30,6 +30,43 @@ export function SectionTabs({ active }: { active: 'read' | 'learn' }) {
   )
 }
 
+/** Persistent bottom bar: one tab per study language + a trailing add button.
+ *  Presentational — the parent supplies the language list and the add handler
+ *  (which is mode-aware: import a book in read, import/generate in learn). */
+export function LanguageBar({
+  langs,
+  active,
+  onSelect,
+  onAdd,
+}: {
+  langs: string[]
+  active?: string
+  onSelect: (lang: string) => void
+  onAdd: () => void
+}) {
+  const display = (code: string) =>
+    (new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code).toLowerCase()
+  return (
+    <nav className="langbar" aria-label="Languages">
+      <div className="langbar-scroll">
+        {langs.map((l) => (
+          <button
+            key={l}
+            className={`langbar-tab ${l === active ? 'active' : ''}`.trim()}
+            aria-current={l === active}
+            onClick={() => onSelect(l)}
+          >
+            {display(l)}
+          </button>
+        ))}
+      </div>
+      <button className="langbar-add" onClick={onAdd} aria-label="Add language or content">
+        ＋
+      </button>
+    </nav>
+  )
+}
+
 type BtnVariant = 'primary' | 'secondary' | 'danger'
 export function Button({
   variant = 'primary',

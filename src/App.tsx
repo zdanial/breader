@@ -5,6 +5,7 @@ import LearnHome from './routes/LearnHome'
 import LearnNew from './routes/LearnNew'
 import LearnStats from './routes/LearnStats'
 import Lesson from './routes/Lesson'
+import Review from './routes/Review'
 import Library from './routes/Library'
 import Reader from './routes/Reader'
 import Saved from './routes/Saved'
@@ -48,6 +49,8 @@ export default function App() {
       return <LearnNew key={route.courseId ?? 'new'} courseId={route.courseId} />
     case 'lesson':
       return <Lesson key={route.lessonId} lessonId={route.lessonId} />
+    case 'review':
+      return <Review key={route.lang} lang={route.lang} />
     default:
       return <Library />
   }

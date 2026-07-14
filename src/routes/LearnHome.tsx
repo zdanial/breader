@@ -5,6 +5,7 @@ import { importLearnFile } from '../learn/importCourse'
 import { deleteCourse, resetCourseProgress } from '../learn/ops'
 import { computeStreak } from '../learn/progress'
 import { navigate } from '../router'
+import { trackedWords } from '../vocab/bank'
 import { Button, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
 
 const langName = (code: string) =>
@@ -17,6 +18,20 @@ export default function LearnHome() {
   const lessons = useLiveQuery(() => db.learnLessons.toArray(), [])
   const progress = useLiveQuery(() => db.learnProgress.toArray(), [])
   const stats = useLiveQuery(() => db.learnStats.get('singleton'), [])
+  // per-language word-bank review counts (tracked + due now)
+  const reviewInfo = useLiveQuery(async () => {
+    const langs = [...new Set((await db.learnCourses.toArray()).map((c) => c.targetLang))]
+    const now = Date.now()
+    const out: Record<string, { tracked: number; due: number }> = {}
+    for (const l of langs) {
+      const withGloss = (await trackedWords(l)).filter((v) => v.gloss)
+      out[l] = {
+        tracked: withGloss.length,
+        due: withGloss.filter((v) => (v.dueAt ?? Infinity) <= now).length,
+      }
+    }
+    return out
+  }, [])
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -91,6 +106,25 @@ export default function LearnHome() {
               <span className="lang-count">{pad2(langCourses.length)}</span>
             </div>
             <Rule />
+
+            {/* word-bank review — per language, pulls due/weak tracked words */}
+            {reviewInfo?.[lang]?.tracked ? (
+              <button
+                className="continue-card review-card"
+                dir="ltr"
+                onClick={() => navigate(`/review/${lang}`)}
+              >
+                <span className="continue-eyebrow">word bank · {langName(lang).toLowerCase()}</span>
+                <span className="continue-title">review</span>
+                <span className="continue-foot">
+                  <span className="muted">{reviewInfo[lang].tracked} words tracked</span>
+                  <span className="continue-resume">
+                    {reviewInfo[lang].due > 0 ? `${reviewInfo[lang].due} due →` : 'practice →'}
+                  </span>
+                </span>
+                <span className="continue-ghost">{pad2(Math.min(99, reviewInfo[lang].due))}</span>
+              </button>
+            ) : null}
 
             {langCourses.map((course) => {
               const us = unitsOf(course.id)

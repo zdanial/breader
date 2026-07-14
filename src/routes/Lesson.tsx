@@ -1,6 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { db, type LessonItem } from '../db/schema'
+import { db, type LessonItem, type VocabOrigin } from '../db/schema'
 import { useSettings } from '../db/settings'
 import { GlossChip } from '../learn/GlossChip'
 import type { GlossSource } from '../learn/gloss'
@@ -9,7 +9,7 @@ import { PassageReader } from '../reader/PassageReader'
 import { navigate } from '../router'
 import { SpeakerIcon } from '../tts/SpeakerButton'
 import { useSpeak } from '../tts/useSpeak'
-import { recordResult, learnGrade, type Grade } from '../vocab/bank'
+import { recordResult, learnGrade } from '../vocab/bank'
 import { Button } from '../ui'
 
 const arraysEqual = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
@@ -27,6 +27,16 @@ function shuffled<T>(arr: T[]): T[] {
 
 type Phase = 'answering' | 'correct' | 'wrong'
 
+export interface LessonSummary {
+  firstTry: number
+  graded: number
+  mistakes: number
+  timeMs: number
+  words: string[]
+}
+
+// ── data wrapper: loads an authored lesson and persists progress ──────────────
+
 export default function Lesson({ lessonId }: { lessonId: string }) {
   const lesson = useLiveQuery(() => db.learnLessons.get(lessonId), [lessonId])
   const course = useLiveQuery(
@@ -36,7 +46,106 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
   const unit = useLiveQuery(() => (lesson ? db.learnUnits.get(lesson.unitId) : undefined), [lesson])
   const settings = useSettings()
 
-  const items = lesson?.items ?? []
+  // persist progress + stats when the lesson completes
+  const onFinish = useCallback(
+    async (s: LessonSummary) => {
+      if (!lesson || !course) return
+      const accuracy = s.graded > 0 ? s.firstTry / s.graded : 1
+      const prev = await db.learnProgress.get(lessonId)
+      await db.learnProgress.put({
+        lessonId,
+        courseId: lesson.courseId,
+        unitId: lesson.unitId,
+        completed: true,
+        bestAccuracy: Math.max(prev?.bestAccuracy ?? 0, accuracy),
+        attempts: (prev?.attempts ?? 0) + 1,
+        lastAt: Date.now(),
+      })
+      const stats = (await db.learnStats.get('singleton')) ?? {
+        id: 'singleton' as const,
+        totalExercises: 0,
+        totalCorrect: 0,
+        totalTimeMs: 0,
+        activeDays: [],
+      }
+      stats.totalExercises += s.graded
+      stats.totalCorrect += s.firstTry
+      stats.totalTimeMs += s.timeMs
+      const day = todayKey()
+      if (!stats.activeDays.includes(day)) stats.activeDays.push(day)
+      await db.learnStats.put(stats)
+
+      // per-language/day rollup for over-time + by-language stats
+      const lang = course.targetLang
+      const did = `${lang}:${day}`
+      const d = (await db.learnDaily.get(did)) ?? { id: did, lang, day, exercises: 0, correct: 0, timeMs: 0 }
+      d.exercises += s.graded
+      d.correct += s.firstTry
+      d.timeMs += s.timeMs
+      await db.learnDaily.put(d)
+    },
+    [lesson, course, lessonId],
+  )
+
+  if (lesson === undefined) return <div className="page center" />
+  if (!lesson || !course) {
+    return (
+      <div className="page center">
+        <p className="muted">
+          lesson not found. <a href="#/learn">back</a>
+        </p>
+      </div>
+    )
+  }
+
+  const glossSrc: GlossSource = {
+    glossary: unit?.glossary,
+    lang: course.targetLang,
+    model: settings.model,
+    apiKey: settings.openaiKey,
+  }
+
+  return (
+    <LessonPlayer
+      items={lesson.items}
+      dir={course.dir}
+      lang={course.targetLang}
+      baseLang={course.baseLang}
+      glossSrc={glossSrc}
+      unitTitle={unit?.title}
+      recordOrigin={{ channel: 'learn', courseId: lesson.courseId, unitId: lesson.unitId }}
+      onFinish={onFinish}
+    />
+  )
+}
+
+// ── the player: runs any LessonItem[] (authored lesson OR review session) ──────
+
+export function LessonPlayer({
+  items,
+  dir,
+  lang,
+  baseLang,
+  glossSrc,
+  unitTitle,
+  reviewWords,
+  recordOrigin,
+  onFinish,
+  headline,
+}: {
+  items: LessonItem[]
+  dir: 'ltr' | 'rtl'
+  lang: string
+  baseLang: string
+  glossSrc: GlossSource
+  unitTitle?: string
+  // review mode: the vocab word each item reviews (by item index). Its presence
+  // makes grading record these words instead of the type-derived target words.
+  reviewWords?: Array<string | undefined>
+  recordOrigin?: VocabOrigin
+  onFinish: (s: LessonSummary) => void
+  headline?: string // celebration title override (e.g. "review done")
+}) {
   const gradedCount = useMemo(
     () => items.filter((i) => i.type !== 'teach' && i.type !== 'read').length,
     [items],
@@ -54,11 +163,11 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
   const [completed, setCompleted] = useState(false)
 
   useEffect(() => {
-    if (lesson && queue.length === 0) {
+    if (items.length && queue.length === 0) {
       setQueue(items.map((_, i) => i))
       startedAt.current = Date.now()
     }
-  }, [lesson, items, queue.length])
+  }, [items, queue.length])
 
   const itemIndex = queue[qpos]
   const item: LessonItem | undefined = itemIndex != null ? items[itemIndex] : undefined
@@ -76,55 +185,22 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
   }, [])
   useEffect(resetItem, [qpos, resetItem])
 
-  const glossSrc: GlossSource = {
-    glossary: unit?.glossary,
-    lang: course?.targetLang ?? 'en',
-    model: settings.model,
-    apiKey: settings.openaiKey,
-  }
   const [gloss, setGloss] = useState<{ word: string; rect: DOMRect } | null>(null)
 
-  const finish = useCallback(async () => {
+  const finish = useCallback(() => {
     setCompleted(true)
-    const accuracy = gradedCount > 0 ? firstTry.current / gradedCount : 1
-    if (!lesson) return
-    const prev = await db.learnProgress.get(lessonId)
-    await db.learnProgress.put({
-      lessonId,
-      courseId: lesson.courseId,
-      unitId: lesson.unitId,
-      completed: true,
-      bestAccuracy: Math.max(prev?.bestAccuracy ?? 0, accuracy),
-      attempts: (prev?.attempts ?? 0) + 1,
-      lastAt: Date.now(),
+    onFinish({
+      firstTry: firstTry.current,
+      graded: gradedCount,
+      mistakes: mistakes.current,
+      timeMs: Date.now() - startedAt.current,
+      words: [...wordsSeen.current],
     })
-    const stats = (await db.learnStats.get('singleton')) ?? {
-      id: 'singleton' as const,
-      totalExercises: 0,
-      totalCorrect: 0,
-      totalTimeMs: 0,
-      activeDays: [],
-    }
-    stats.totalExercises += gradedCount
-    stats.totalCorrect += firstTry.current
-    stats.totalTimeMs += Date.now() - startedAt.current
-    const day = todayKey()
-    if (!stats.activeDays.includes(day)) stats.activeDays.push(day)
-    await db.learnStats.put(stats)
-
-    // per-language/day rollup for over-time + by-language stats
-    const lang = course?.targetLang ?? lesson.courseId
-    const did = `${lang}:${day}`
-    const d = (await db.learnDaily.get(did)) ?? { id: did, lang, day, exercises: 0, correct: 0, timeMs: 0 }
-    d.exercises += gradedCount
-    d.correct += firstTry.current
-    d.timeMs += Date.now() - startedAt.current
-    await db.learnDaily.put(d)
-  }, [gradedCount, lesson, lessonId, course])
+  }, [gradedCount, onFinish])
 
   const advance = useCallback(() => {
     const next = qpos + 1
-    if (next >= queue.length) void finish()
+    if (next >= queue.length) finish()
     else setQpos(next)
   }, [qpos, queue.length, finish])
 
@@ -132,27 +208,19 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
     setDone((d) => new Set(d).add(idx))
   }, [])
 
-  // record target words into the shared word bank at the derived SM-2 grade
-  const recordWords = useCallback(
-    (words: string[], g: Grade) => {
-      const lang = course?.targetLang
-      if (!lang || !lesson) return
-      for (const w of words) {
-        wordsSeen.current.add(w.toLowerCase())
-        void recordResult({
-          lang, word: w, grade: g,
-          origin: { channel: 'learn', courseId: lesson.courseId, unitId: lesson.unitId },
-        })
-      }
-    },
-    [course, lesson],
-  )
-
   const grade = useCallback(
     (correct: boolean, targetWords: string[]) => {
       if (itemIndex == null) return
       const wasRequeued = everWrong.current.has(itemIndex)
-      recordWords(targetWords, learnGrade(correct, wasRequeued))
+      const g = learnGrade(correct, wasRequeued)
+      // review mode records the item's reviewed word; authored lessons record
+      // the type-derived target words
+      const rw = reviewWords?.[itemIndex]
+      const toRecord = reviewWords ? (rw ? [rw] : []) : targetWords
+      for (const w of toRecord) {
+        wordsSeen.current.add(w.toLowerCase())
+        void recordResult({ lang, word: w, grade: g, origin: recordOrigin })
+      }
       if (correct) {
         if (!wasRequeued) firstTry.current += 1
         markDone(itemIndex)
@@ -164,19 +232,8 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
         setPhase('wrong')
       }
     },
-    [itemIndex, markDone, recordWords],
+    [itemIndex, markDone, lang, reviewWords, recordOrigin],
   )
-
-  if (lesson === undefined) return <div className="page center" />
-  if (!lesson || !course) {
-    return (
-      <div className="page center">
-        <p className="muted">
-          lesson not found. <a href="#/learn">back</a>
-        </p>
-      </div>
-    )
-  }
 
   if (completed) {
     const accuracy = gradedCount > 0 ? Math.round((firstTry.current / gradedCount) * 100) : 100
@@ -184,7 +241,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
     return (
       <div className="page center celebrate lilac-break" data-theme="light">
         <div className="celebrate-inner">
-          <div className="celebrate-title">well done</div>
+          <div className="celebrate-title">{headline ?? 'well done'}</div>
           <span className="rule res-rule" />
           <div className="celebrate-stats">
             <div>
@@ -209,7 +266,6 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
     )
   }
 
-  const dir = course.dir
   const openGloss = (word: string, e: React.PointerEvent | React.MouseEvent) =>
     setGloss({ word, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() })
 
@@ -220,7 +276,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
       ? 'build the phrase'
       : item?.type === 'match'
         ? 'match the pairs'
-        : (unit?.title ?? '')
+        : (unitTitle ?? '')
   // question number within the lesson: 1-based position among the lesson's items
   const qNum = itemIndex != null ? itemIndex + 1 : 1
   const showQHead = item != null && item.type !== 'read'
@@ -239,8 +295,8 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
           key={itemIndex}
           item={item}
           dir={dir}
-          lang={course.targetLang}
-          baseLang={course.baseLang}
+          lang={lang}
+          baseLang={baseLang}
           glossSrc={glossSrc}
           onDone={() => {
             markDone(itemIndex!)
@@ -285,7 +341,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
             key={itemIndex}
             item={item}
             dir={dir}
-            lang={course.targetLang}
+            lang={lang}
             onComplete={() => {
               markDone(itemIndex!)
               if (!everWrong.current.has(itemIndex!)) firstTry.current += 1
@@ -474,7 +530,7 @@ function TeachView({ item, dir, onGloss }: { item: Extract<LessonItem, { type: '
         <div className="teach-examples">
           {item.examples.map(([t, b], i) => (
             <div key={i} className="teach-ex">
-              <span className="tgt" lang={dir === 'rtl' ? undefined : undefined} dir={dir} onClick={(e) => onGloss(t, e)}>
+              <span className="tgt" dir={dir} onClick={(e) => onGloss(t, e)}>
                 {t}
               </span>
               <span className="base">{b}</span>

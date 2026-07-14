@@ -9,6 +9,7 @@ export type Route =
   | { name: 'learn-stats' }
   | { name: 'learn-new'; courseId?: string }
   | { name: 'lesson'; lessonId: string }
+  | { name: 'review'; lang: string }
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#/, '')
@@ -16,6 +17,8 @@ function parse(hash: string): Route {
   if (book) return { name: 'reader', bookId: book[1] }
   const lesson = path.match(/^\/lesson\/([^/]+)$/)
   if (lesson) return { name: 'lesson', lessonId: lesson[1] }
+  const review = path.match(/^\/review\/([^/]+)$/)
+  if (review) return { name: 'review', lang: review[1] }
   if (path === '/settings') return { name: 'settings' }
   if (path === '/saved') return { name: 'saved' }
   if (path === '/learn') return { name: 'learn' }

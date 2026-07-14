@@ -248,3 +248,26 @@ Shipped in L4, copied from the app for a specific course. Structure:
 - Sequential unlock (unit N needs unit N-1); trivially relaxed to free-play.
 - Core Learn is **offline & keyless**; gloss uses the file glossary offline, LLM only if a
   key is present. Only fast-follows (typed grading, TTS/mic) add network/device APIs.
+
+---
+
+## 9. Immersion direction (planned — build out later)
+
+Decision (2026-07-13): lessons should lean **Duolingo-style / target-language immersion**,
+not base-language translation. Approach chosen: **balanced** — mostly in-target, but keep a
+healthy amount of base→target production (producing the language from meaning is valuable).
+Text-only means the base language is still needed *minimally* to anchor meaning (glosses +
+occasional match); everything else operates on target text.
+
+**Not implemented yet.** When we build it out, the work is mostly two levers:
+- **Generator prompt (main lever):** instruct the AI so — `teach` is written mostly in the
+  target language (meaning via tap-gloss + a few example pairs, not English paragraphs);
+  `match` is the one bilingual tool, used to introduce new words at a unit's start; `choice`
+  is reframed to in-target selection (a target context/gap, target options — not "how do you
+  say X in English"); `blank` is the workhorse; `build` shifts mostly to "complete/answer in
+  target," with base→target translation kept as the minority.
+- **UI (small):** `choice`/`build` prompts currently assume LTR English; make each item's
+  prompt **dir/script-aware** so target-language prompts render correctly (RTL for `fa`).
+
+Deferred idea: a `reorder` type (build with all-correct tiles, no distractors) for pure
+in-target syntax practice.

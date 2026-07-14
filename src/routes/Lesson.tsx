@@ -49,6 +49,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
   const everWrong = useRef<Set<number>>(new Set())
   const firstTry = useRef(0)
   const mistakes = useRef(0)
+  const wordsSeen = useRef<Set<string>>(new Set())
   const startedAt = useRef(Date.now())
   const [completed, setCompleted] = useState(false)
 
@@ -138,7 +139,10 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
     (words: string[], correct: boolean) => {
       const lang = course?.targetLang
       if (!lang) return
-      for (const w of words) void recordEncounter({ lang, word: w, source: 'learn', correct })
+      for (const w of words) {
+        wordsSeen.current.add(w.toLowerCase())
+        void recordEncounter({ lang, word: w, source: 'learn', correct })
+      }
     },
     [course],
   )
@@ -185,8 +189,8 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
               <span className="cl">accuracy</span>
             </div>
             <div>
-              <span className="cn">+{10 + firstTry.current}</span>
-              <span className="cl">xp</span>
+              <span className="cn">{wordsSeen.current.size}</span>
+              <span className="cl">words</span>
             </div>
           </div>
           <Button onClick={() => navigate('/learn')} style={{ marginTop: 24 }}>

@@ -219,7 +219,10 @@ p {
 /* ── page / topbar ──────────────────────────────────────────────────────── */
 
 .page {
-  height: 100dvh;
+  /* fill the pinned body (position:fixed; inset:0) exactly. NOT 100dvh — on iOS
+     the dynamic viewport is shorter than the fixed body while the toolbar shows,
+     which left dead space and mis-sized the scroll regions. */
+  height: 100%;
   display: flex;
   flex-direction: column;
   padding-top: env(safe-area-inset-top);
@@ -384,6 +387,7 @@ p {
 }
 .lesson-body {
   flex: 1;
+  min-height: 0; /* let the flex item shrink so overflow-y actually scrolls */
   overflow-y: auto;
   padding: 20px 20px 12px;
   display: flex;
@@ -1096,6 +1100,7 @@ p {
 
 .shelf {
   flex: 1;
+  min-height: 0; /* let the flex item shrink so overflow-y actually scrolls */
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 6px 20px 20px;

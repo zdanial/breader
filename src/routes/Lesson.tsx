@@ -10,7 +10,7 @@ import { navigate } from '../router'
 import { SpeakerIcon } from '../tts/SpeakerButton'
 import { useSpeak } from '../tts/useSpeak'
 import { recordEncounter } from '../vocab/bank'
-import { Button, ProgressBar } from '../ui'
+import { Button } from '../ui'
 
 const arraysEqual = (a: string[], b: string[]) => a.length === b.length && a.every((x, i) => x === b[i])
 const todayKey = () => new Date().toISOString().slice(0, 10)
@@ -67,10 +67,12 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
   const [phase, setPhase] = useState<Phase>('answering')
   const [choiceSel, setChoiceSel] = useState<number | null>(null)
   const [built, setBuilt] = useState<number[]>([])
+  const [matchDone, setMatchDone] = useState(0) // pairs confirmed so far (for footer count)
   const resetItem = useCallback(() => {
     setPhase('answering')
     setChoiceSel(null)
     setBuilt([])
+    setMatchDone(0)
   }, [])
   useEffect(resetItem, [qpos, resetItem])
 
@@ -178,11 +180,12 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
 
   if (completed) {
     const accuracy = gradedCount > 0 ? Math.round((firstTry.current / gradedCount) * 100) : 100
+    // "lilac break" — the results view forces the light palette even in dark mode
     return (
-      <div className="page center celebrate">
+      <div className="page center celebrate lilac-break" data-theme="light">
         <div className="celebrate-inner">
           <div className="celebrate-title">well done</div>
-          <span className="rule" style={{ maxWidth: 220, margin: '18px auto' }} />
+          <span className="rule res-rule" />
           <div className="celebrate-stats">
             <div>
               <span className="cn">{accuracy}%</span>
@@ -193,7 +196,12 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
               <span className="cl">words</span>
             </div>
           </div>
-          <Button onClick={() => navigate('/learn')} style={{ marginTop: 24 }}>
+          <div className="res-triad" aria-hidden>
+            <span style={{ background: 'var(--accent)' }} />
+            <span style={{ background: 'var(--danger)' }} />
+            <span style={{ background: 'var(--signal-green)' }} />
+          </div>
+          <Button onClick={() => navigate('/learn')} style={{ marginTop: 26 }}>
             done
           </Button>
         </div>
@@ -205,13 +213,25 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
   const openGloss = (word: string, e: React.PointerEvent | React.MouseEvent) =>
     setGloss({ word, rect: (e.currentTarget as HTMLElement).getBoundingClientRect() })
 
+  // eyebrow/numeral label: build/listen → "build the phrase", match → "match the
+  // pairs", everything else → the unit title. Uppercased in CSS.
+  const qLabel =
+    item?.type === 'build' || item?.type === 'listen'
+      ? 'build the phrase'
+      : item?.type === 'match'
+        ? 'match the pairs'
+        : (unit?.title ?? '')
+  // question number within the lesson: 1-based position among the lesson's items
+  const qNum = itemIndex != null ? itemIndex + 1 : 1
+  const showQHead = item != null && item.type !== 'read'
+
   return (
     <div className="page lesson">
       <header className="topbar lesson-top">
         <a className="icon-btn" href="#/learn" aria-label="Quit lesson">
           ✕
         </a>
-        <ProgressBar value={items.length ? done.size / items.length : 0} />
+        <SegmentedLedger count={items.length} done={done} current={itemIndex} />
       </header>
 
       {item?.type === 'read' ? (
@@ -230,6 +250,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
       ) : (
         <>
       <main className="lesson-body">
+        {showQHead && <QuestionHead n={qNum} label={qLabel} />}
         {item?.type === 'teach' && (
           <TeachView item={item} dir={dir} onGloss={openGloss} />
         )}
@@ -271,24 +292,36 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
               setPhase('correct')
             }}
             onMistake={() => (mistakes.current += 1)}
+            onProgress={setMatchDone}
             onGloss={openGloss}
           />
         )}
       </main>
 
-      {phase !== 'answering' && item?.type !== 'match' && (
-        <FeedbackBanner phase={phase} item={item} dir={dir} />
-      )}
-
-      <footer className="lesson-foot">
-        {item?.type === 'teach' && (
-          <Button onClick={() => { markDone(itemIndex!); advance() }} style={{ width: '100%' }}>
-            continue
-          </Button>
-        )}
-        {(item?.type === 'choice' || item?.type === 'blank') &&
-          (phase === 'answering' ? (
+      {/* Once answered, the check button is replaced by a feedback ledger strip
+          that rises from the bottom. teach/match keep the plain footer. */}
+      {(item?.type === 'choice' ||
+        item?.type === 'blank' ||
+        item?.type === 'build' ||
+        item?.type === 'listen') &&
+      phase !== 'answering' ? (
+        <FeedbackStrip
+          phase={phase}
+          dir={dir}
+          headword={feedbackHeadword(item)}
+          note={item.note}
+          onNext={advance}
+        />
+      ) : (
+        <footer className="lesson-foot">
+          {item?.type === 'teach' && (
+            <Button onClick={() => { markDone(itemIndex!); advance() }} style={{ width: '100%' }}>
+              continue
+            </Button>
+          )}
+          {(item?.type === 'choice' || item?.type === 'blank') && (
             <Button
+              variant={choiceSel == null ? 'secondary' : 'primary'}
               disabled={choiceSel == null}
               onClick={() => {
                 const target = item.choices[item.answer]
@@ -298,12 +331,10 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
             >
               check
             </Button>
-          ) : (
-            <Button onClick={advance} style={{ width: '100%' }}>continue</Button>
-          ))}
-        {(item?.type === 'build' || item?.type === 'listen') &&
-          (phase === 'answering' ? (
+          )}
+          {(item?.type === 'build' || item?.type === 'listen') && (
             <Button
+              variant={built.length === 0 ? 'secondary' : 'primary'}
               disabled={built.length === 0}
               onClick={() => {
                 const words = built.map((i) => item.tiles[i])
@@ -314,13 +345,17 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
             >
               check
             </Button>
-          ) : (
-            <Button onClick={advance} style={{ width: '100%' }}>continue</Button>
-          ))}
-        {item?.type === 'match' && phase === 'correct' && (
-          <Button onClick={advance} style={{ width: '100%' }}>continue</Button>
-        )}
-      </footer>
+          )}
+          {item?.type === 'match' &&
+            (phase === 'correct' ? (
+              <Button onClick={advance} style={{ width: '100%' }}>continue</Button>
+            ) : (
+              <div className="match-count">
+                {matchDone} of {item.pairs.length} matched
+              </div>
+            ))}
+        </footer>
+      )}
         </>
       )}
 
@@ -334,6 +369,69 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
 // ── item views ───────────────────────────────────────────────────────────────
 
 type GlossFn = (word: string, e: React.PointerEvent | React.MouseEvent) => void
+
+// Segmented progress ledger — one tick per item in the lesson. Completed ticks
+// are filled, the current tick is accent-blue, the rest are faint.
+function SegmentedLedger({
+  count, done, current,
+}: {
+  count: number; done: Set<number>; current: number | undefined
+}) {
+  return (
+    <div className="ledger" role="progressbar" aria-valuemin={0} aria-valuemax={count} aria-valuenow={done.size}>
+      {Array.from({ length: count }, (_, i) => (
+        <span key={i} className={`seg${done.has(i) ? ' done' : ''}${i === current ? ' cur' : ''}`} />
+      ))}
+    </div>
+  )
+}
+
+// Question header — lowercase eyebrow (question nn · label), an oversized serif
+// numeral anchored top-right, and the signature 3px rule beneath.
+function QuestionHead({ n, label }: { n: number; label: string }) {
+  const nn = String(n).padStart(2, '0')
+  return (
+    <div className="q-head">
+      <div className="q-head-row">
+        <span className="q-eyebrow">question {nn}{label ? ` · ${label}` : ''}</span>
+        <span className="q-numeral">{nn}</span>
+      </div>
+      <span className="rule" />
+    </div>
+  )
+}
+
+// The target headword surfaced in the feedback strip after answering.
+function feedbackHeadword(item: LessonItem): string {
+  if (item.type === 'choice' || item.type === 'blank') return item.choices[item.answer]
+  if (item.type === 'build' || item.type === 'listen') return item.answer.join(' ')
+  return ''
+}
+
+// Feedback ledger strip that rises from the bottom, replacing the check button.
+// Correct → green top rule + "correct"; wrong → red top rule + "not quite".
+function FeedbackStrip({
+  phase, dir, headword, note, onNext,
+}: {
+  phase: Phase; dir: 'ltr' | 'rtl'; headword: string; note?: string; onNext: () => void
+}) {
+  const correct = phase === 'correct'
+  return (
+    <div className={`fb-strip ${phase}`}>
+      <div className="fb-body">
+        <div className="fb-text">
+          <span className="fb-label">{correct ? 'correct' : 'not quite'}</span>
+          {/* TODO: transliteration once in schema */}
+          <span className="fb-headword" dir={dir}>{headword}</span>
+          {note && <span className="fb-why">{note}</span>}
+        </div>
+        <Button className={`fb-btn ${correct ? 'ok' : ''}`.trim()} onClick={onNext}>
+          {correct ? 'continue →' : 'got it →'}
+        </Button>
+      </div>
+    </div>
+  )
+}
 
 // Writing sample (poem/story) read with the shared PassageReader — sentence at a
 // time, tap words for gloss, hold to peek the translation, speaker audio.
@@ -413,6 +511,7 @@ function ChoiceView({
                     ? 'selected'
                     : 'idle'
             }
+            reveal={phase === 'wrong' && i === item.answer}
             disabled={phase !== 'answering'}
             onSelect={() => onSelect(i)}
             onGloss={onGloss}
@@ -449,6 +548,7 @@ function BlankView({
                     ? 'selected'
                     : 'idle'
             }
+            reveal={phase === 'wrong' && i === item.answer}
             disabled={phase !== 'answering'}
             onSelect={() => onSelect(i)}
             onGloss={onGloss}
@@ -468,15 +568,18 @@ function BuildBody({
   const used = new Set(built)
   return (
     <>
-      <div className="build-answer" dir={dir}>
+      {/* dotted-leader baseline — the reader's ledger motif; chips land in order,
+          an empty caret slot marks where the next word goes */}
+      <div className="build-answer ledger-line" dir={dir}>
         {built.map((ti, pos) => (
           <button key={pos} className="tile" dir={dir} disabled={phase !== 'answering'}
             onClick={() => setBuilt((b) => b.filter((_, p) => p !== pos))}>
             {tiles[ti]}
           </button>
         ))}
+        {phase === 'answering' && <span className="caret-slot" aria-hidden />}
       </div>
-      <span className="rule" style={{ opacity: 0.4 }} />
+      <div className="bank-label">word bank</div>
       <div className="build-bank" dir={dir}>
         {tiles.map((t, i) =>
           used.has(i) ? (
@@ -532,16 +635,19 @@ function ListenView({
 }
 
 function MatchView({
-  item, dir, lang, onComplete, onMistake, onGloss,
+  item, dir, lang, onComplete, onMistake, onProgress, onGloss,
 }: {
   item: Extract<LessonItem, { type: 'match' }>
-  dir: 'ltr' | 'rtl'; lang: string; onComplete: () => void; onMistake: () => void; onGloss: GlossFn
+  dir: 'ltr' | 'rtl'; lang: string; onComplete: () => void; onMistake: () => void
+  onProgress: (n: number) => void; onGloss: GlossFn
 }) {
   const targets = item.pairs.map((p, i) => ({ text: p[0], i }))
   const bases = useMemo(() => shuffled(item.pairs.map((p, i) => ({ text: p[1], i }))), [item])
   const [sel, setSel] = useState<number | null>(null)
   const [matched, setMatched] = useState<Set<number>>(new Set())
   const [wrong, setWrong] = useState<number | null>(null)
+
+  useEffect(() => { onProgress(matched.size) }, [matched, onProgress])
 
   const pick = (side: 't' | 'b', i: number) => {
     if (matched.has(i)) return
@@ -561,51 +667,59 @@ function MatchView({
     }
   }
 
+  const selText = sel != null ? item.pairs[sel][0] : null
+
   return (
-    <div className="ex">
-      <p className="ex-prompt">match the pairs</p>
+    <div className="ex match-ex">
+      {/* confirmed pairs collapse into dimmed ledger rows and move up out of the way */}
+      {matched.size > 0 && (
+        <div className="match-confirmed">
+          {item.pairs.map((p, i) =>
+            matched.has(i) ? (
+              <div key={i} className="match-row">
+                <span className="match-tick" aria-hidden />
+                <span className="mr-tgt" dir={dir}>{p[0]}</span>
+                <span className="mr-arrow" aria-hidden>→</span>
+                <span className="mr-base">{p[1]}</span>
+              </div>
+            ) : null,
+          )}
+        </div>
+      )}
+
+      <p className="match-hint">
+        {selText ? (
+          <>now pick the English for <b dir={dir}>{selText}</b></>
+        ) : (
+          'tap a word, then its english match'
+        )}
+      </p>
+
       <div className="match">
         <div className="match-col">
-          {targets.map((t) => (
-            <button key={t.i} dir={dir}
-              className={`tile ${matched.has(t.i) ? 'ghost' : ''} ${sel === t.i ? 'selected' : ''}`}
-              disabled={matched.has(t.i)}
-              onClick={() => pick('t', t.i)}
-              onContextMenu={(e) => { e.preventDefault(); onGloss(t.text, e) }}>
-              {t.text}
-            </button>
-          ))}
+          {targets
+            .filter((t) => !matched.has(t.i))
+            .map((t) => (
+              <button key={t.i}
+                className={`tile ${sel === t.i ? 'ring' : ''}`.trim()}
+                onClick={() => pick('t', t.i)}
+                onContextMenu={(e) => { e.preventDefault(); onGloss(t.text, e) }}>
+                <span dir={dir}>{t.text}</span>
+              </button>
+            ))}
         </div>
         <div className="match-col">
-          {bases.map((b) => (
-            <button key={b.i}
-              className={`tile ${matched.has(b.i) ? 'ghost' : ''} ${wrong === b.i ? 'shake wrong' : ''}`}
-              disabled={matched.has(b.i)}
-              onClick={() => pick('b', b.i)}>
-              {b.text}
-            </button>
-          ))}
+          {bases
+            .filter((b) => !matched.has(b.i))
+            .map((b) => (
+              <button key={b.i}
+                className={`tile ${wrong === b.i ? 'shake wrong' : ''}`.trim()}
+                onClick={() => pick('b', b.i)}>
+                {b.text}
+              </button>
+            ))}
         </div>
       </div>
-    </div>
-  )
-}
-
-function FeedbackBanner({ phase, item, dir }: { phase: Phase; item?: LessonItem; dir: 'ltr' | 'rtl' }) {
-  let correct = ''
-  if (phase === 'wrong' && item) {
-    if (item.type === 'choice' || item.type === 'blank') correct = item.choices[item.answer]
-    else if (item.type === 'build') correct = item.answer.join(' ')
-  }
-  return (
-    <div className={`feedback ${phase}`}>
-      {phase === 'correct' ? (
-        <span>✓ correct</span>
-      ) : (
-        <span>
-          answer: <b dir={dir}>{correct}</b>
-        </span>
-      )}
     </div>
   )
 }
@@ -629,23 +743,25 @@ function useLongPress(onLong: (e: React.PointerEvent) => void, enabled: boolean)
 }
 
 function ChoiceTile({
-  text, dir, state, disabled, onSelect, onGloss,
+  text, dir, state, disabled, reveal, onSelect, onGloss,
 }: {
   text: string; dir: 'ltr' | 'rtl'; state: 'idle' | 'selected' | 'correct' | 'wrong'
-  disabled: boolean; onSelect: () => void; onGloss: GlossFn
+  disabled: boolean; reveal?: boolean; onSelect: () => void; onGloss: GlossFn
 }) {
   const lp = useLongPress((e) => onGloss(text, e), true)
   return (
     <button
       className={`choice-tile ${state}`}
-      dir={dir}
       disabled={disabled}
       onPointerDown={lp.onPointerDown}
       onPointerUp={lp.onPointerUp}
       onPointerLeave={lp.onPointerLeave}
       onClick={() => { if (!lp.suppressed()) onSelect() }}
     >
-      {text}
+      {/* signal bar pinned left (stays left in RTL, as the lesson-home rows do) */}
+      <span className="sig" aria-hidden />
+      <span className="choice-text" dir={dir}>{text}</span>
+      {reveal && <span className="choice-tag">correct</span>}
     </button>
   )
 }

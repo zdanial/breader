@@ -270,6 +270,52 @@ p {
 .lesson-top .bar {
   flex: 1;
 }
+
+/* segmented progress ledger — one tick per item */
+.ledger {
+  flex: 1;
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.ledger .seg {
+  flex: 1;
+  height: 3px;
+  background: var(--border);
+  transition: background 0.15s ease;
+}
+.ledger .seg.done {
+  background: var(--fg);
+}
+.ledger .seg.cur {
+  background: var(--accent);
+}
+
+/* question header — eyebrow + oversized serif numeral + 3px rule */
+.q-head {
+  margin-bottom: 4px;
+}
+.q-head-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.q-eyebrow {
+  font: 700 12px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--muted);
+  padding-top: 6px;
+}
+.q-numeral {
+  font-family: var(--font-serif);
+  font-size: 52px;
+  line-height: 0.7;
+  color: var(--fg);
+  letter-spacing: -0.03em;
+}
 .lesson-body {
   flex: 1;
   overflow-y: auto;
@@ -307,24 +353,53 @@ p {
   gap: 10px;
 }
 .choice-tile {
-  padding: 15px 16px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px 15px 22px;
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--fg);
   font: 600 17px var(--font-sans);
-  text-align: center;
+  text-align: left;
   cursor: pointer;
 }
+.choice-tile .choice-text {
+  flex: 1;
+}
+/* signal bar pinned to the left, inset top/bottom (as the lesson-home rows) */
+.choice-tile .sig {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 6px;
+  background: transparent;
+}
 .choice-tile.selected {
-  border-color: var(--fg);
+  border-color: var(--border-strong);
+}
+.choice-tile.selected .sig {
+  background: var(--accent);
 }
 .choice-tile.correct {
   border-color: var(--signal-green);
-  color: var(--signal-green);
+}
+.choice-tile.correct .sig {
+  background: var(--signal-green);
 }
 .choice-tile.wrong {
   border-color: var(--danger);
-  color: var(--danger);
+}
+.choice-tile.wrong .sig {
+  background: var(--signal-red);
+}
+.choice-tag {
+  font: 700 10px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--signal-green);
 }
 
 /* word tiles (build + match) */
@@ -369,6 +444,28 @@ p {
   gap: 8px;
   align-content: flex-start;
 }
+/* dotted-leader baseline — the reader's ledger motif */
+.build-answer.ledger-line {
+  align-items: flex-end;
+  align-content: flex-end;
+  min-height: 60px;
+  padding-bottom: 10px;
+  border-bottom: 2px dotted var(--border-strong);
+}
+/* empty caret slot marking where the next word lands */
+.caret-slot {
+  width: 26px;
+  height: 34px;
+  border: 1px dashed var(--muted-2);
+  opacity: 0.7;
+  align-self: flex-end;
+}
+.bank-label {
+  font: 700 11px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--muted);
+}
 .build-bank {
   display: flex;
   flex-wrap: wrap;
@@ -383,6 +480,65 @@ p {
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+/* active left selection: ringed blue while picking its partner */
+.tile.ring {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--accent);
+}
+
+/* confirmed pairs collapse into dimmed ledger rows at the top */
+.match-confirmed {
+  display: flex;
+  flex-direction: column;
+}
+.match-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0 7px 14px;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+  opacity: 0.6;
+}
+.match-row .match-tick {
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 4px;
+  background: var(--accent);
+}
+.match-row .mr-tgt {
+  font-family: var(--font-serif);
+  font-size: 17px;
+  color: var(--fg);
+}
+.match-row .mr-arrow {
+  color: var(--muted-2);
+  font-size: 13px;
+}
+.match-row .mr-base {
+  font: 600 14px var(--font-sans);
+  color: var(--muted);
+}
+.match-hint {
+  font: 400 14px var(--font-sans);
+  color: var(--muted);
+}
+.match-hint b {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  color: var(--fg);
+}
+.match-count {
+  font: 700 14px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-align: center;
+  padding: 13px 0;
 }
 
 /* writing sample (read) — uses the shared PassageReader */
@@ -456,44 +612,85 @@ p {
   color: var(--muted);
 }
 
-/* feedback banner */
-.feedback {
-  padding: 12px 20px;
-  font: 700 15px var(--font-sans);
-  border-top: 2px solid transparent;
+/* feedback ledger strip — rises from the bottom, replacing the check button */
+.fb-strip {
+  border-top: 3px solid var(--fg);
+  padding: 16px 20px calc(16px + env(safe-area-inset-bottom));
+  animation: stripRise 0.22s cubic-bezier(0.2, 0, 0, 1);
 }
-.feedback.correct {
-  color: var(--signal-green);
+.fb-strip.correct {
   border-top-color: var(--signal-green);
 }
-.feedback.wrong {
-  color: var(--danger);
-  border-top-color: var(--danger);
+.fb-strip.wrong {
+  border-top-color: var(--signal-red);
 }
-.feedback b {
+.fb-body {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+.fb-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.fb-label {
+  font: 700 11px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.fb-strip.correct .fb-label {
+  color: var(--signal-green);
+}
+.fb-strip.wrong .fb-label {
+  color: var(--signal-red);
+}
+.fb-headword {
   font-family: var(--font-serif);
-  font-weight: 400;
+  font-size: 26px;
+  line-height: 1.05;
+  color: var(--fg);
+}
+.fb-why {
+  font: 400 13px/1.45 var(--font-sans);
+  color: var(--muted);
+}
+.fb-btn {
+  flex: none;
+  white-space: nowrap;
+}
+.fb-btn.ok {
+  background: var(--signal-green);
+  border-color: var(--signal-green);
+  color: #fff;
+}
+@keyframes stripRise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* celebration */
+/* celebration — the results "lilac break" forces the light palette (see below) */
 .celebrate-inner {
   text-align: center;
   animation: popIn 0.3s cubic-bezier(0.2, 0, 0, 1);
 }
 .celebrate-title {
   font-family: var(--font-serif);
-  font-size: 44px;
+  font-size: 48px;
   color: var(--fg);
 }
 .celebrate-stats {
   display: flex;
-  gap: 40px;
+  gap: 44px;
   justify-content: center;
 }
 .celebrate-stats .cn {
   display: block;
   font-family: var(--font-serif);
-  font-size: 34px;
+  font-size: 46px;
+  line-height: 0.9;
   color: var(--accent);
 }
 .celebrate-stats .cl {
@@ -501,6 +698,39 @@ p {
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
+}
+
+/* results "lilac break" — force the light palette even when the app is dark */
+.lilac-break {
+  --bg: #e8e6ee;
+  --bg-2: #efedf3;
+  --fg: #0a0a0a;
+  --fg-soft: #2b2b2b;
+  --muted: #6b6b73;
+  --muted-2: #8a8a92;
+  --card: #f5f4f8;
+  --card-2: #ffffff;
+  --border: #d5d3dc;
+  --border-strong: #0a0a0a;
+  --danger: #b3261e;
+  background: var(--bg);
+  color: var(--fg);
+}
+.res-rule {
+  max-width: 220px;
+  margin: 20px auto;
+  background: #0a0a0a;
+}
+.res-triad {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 22px;
+}
+.res-triad span {
+  width: 16px;
+  height: 16px;
+  display: block;
 }
 
 @keyframes popIn {

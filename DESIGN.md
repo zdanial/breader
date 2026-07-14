@@ -383,18 +383,20 @@ home-screen PWA **deletes its data**; storage can also be evicted under pressure
 (`navigator.storage.persist()` reduces but doesn't prevent user-initiated deletion). No
 cross-device sync. So a manual backup is essential.
 
-**The feature (Settings → Back up / Restore):**
-- **Export** — serialize every Dexie table (books, sentences, chapters, translations,
-  covers, saved words/quotes, highlights, learn courses/units/lessons/progress/stats,
-  settings **minus the OpenAI key**) into one downloadable `.breader-backup.json`. Blobs
-  (original book files, covers) are base64-encoded.
+**The feature (Settings → Back up / Restore) — a `.zip` (built/read with the already-bundled
+`fflate`):**
+- **Export** → a `.zip` containing `manifest.json` (version, scope, table list) + one JSON
+  per Dexie table (books, sentences, chapters, translations, covers, saved words/quotes,
+  highlights, vocab word bank, learn courses/units/lessons/progress/stats, settings **minus
+  the OpenAI key**) + original blobs (book files, covers) stored as real files in the zip
+  (not base64) so it stays compact.
 - Two scopes: **Full** (includes original book files — large) or **Light** (progress +
-  saved bank + learn + library metadata, no book files — small, restores everything except
-  the raw books, which can be re-imported).
-- **Import** — read a backup file, validate its version, and restore/merge into IndexedDB
-  (with a confirm before overwriting existing data).
-- Round-trips are the acceptance test: export on one browser profile, import on a fresh
-  one, everything reappears.
+  saved bank + word bank + learn + library metadata, no book files — small; the raw books
+  can be re-imported).
+- **Import** → read the `.zip`, validate the manifest version, restore/merge into IndexedDB
+  (confirm before overwriting existing data).
+- Round-trip is the acceptance test: export on one browser profile, import on a fresh one,
+  everything reappears.
 
 ## 10. Persian (`fa`) reader support (cross-cutting with LEARN.md)
 
@@ -406,3 +408,52 @@ Adding Persian as a reading + learning language:
   `detect.ts`, since both share the Arabic Unicode block.
 - **Segmentation:** the default segmenter + fragment-merge already handles Persian
   punctuation; no `fa`-specific segmenter needed initially.
+
+---
+
+## 11. Shared vocabulary "word bank" (cross-section foundation)
+
+The Read and Learn sections must **talk to each other**. The connective tissue is a
+per-language **word bank**: a knowledge model of what the user has encountered and how well
+they know it. Built simple now; it becomes the substrate for advanced features later. Lives
+in a shared module (`src/vocab/`) owned by neither section.
+
+### Model (start simple)
+```ts
+interface VocabEntry {
+  id: string           // `${lang}:${lemma}`
+  lang: string         // target language
+  lemma: string        // normalized key (lowercased surface form for now; real
+                       // lemmatization is a fast-follow)
+  surface?: string     // an example form actually seen
+  gloss?: string       // best-known base-language meaning
+  seen: number         // total encounters
+  correct: number      // Learn: answered correctly
+  incorrect: number
+  status: 'new' | 'learning' | 'known'   // familiarity (simple rules over the counts)
+  firstSeenAt: number
+  lastSeenAt: number
+  sources: ('reader' | 'learn' | 'saved')[]
+}
+```
+
+### Who writes (both sections, from day one)
+- **Reader:** tapping/glossing a word, or saving it, upserts an entry (`seen++`, records
+  `gloss`, adds source `reader`/`saved`).
+- **Learn:** a word appearing in an exercise upserts (`seen++`); a graded answer bumps
+  `correct`/`incorrect`; source `learn`. `status` is derived from the counts.
+
+### Who reads (enables the future features the user named)
+- **Reader → pre-gloss:** while reading, auto-gloss words whose `status` is `new`/`learning`
+  (skip `known` ones) — "knowing what the user doesn't know."
+- **Learn → create lesson from word bank:** feed weak/`learning` words into the generator
+  prompt (or a built-in practice generator) to make targeted lessons.
+- **Stats:** vocabulary size per language, growth over time.
+
+### Principles
+- **Language-keyed** so multi-language study stays separate; the same lemma in two languages
+  is two entries.
+- **Consistent normalization** shared by both sections so a word learned in Learn matches
+  the same word tapped in the reader.
+- **Build v0 early** (a Dexie table + upsert API, wired into the reader's word-tap and Learn
+  L2 exercises) so real data accumulates before the advanced readers are built.

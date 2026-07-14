@@ -28,7 +28,9 @@ independently runnable and demoable end to end.
 | **Exercise/screen types (MVP)** | **Teaching screens** (`teach`, no input — presents/explains) **+** four auto-graded types: **multiple-choice**, **tap-to-build word bank**, **match pairs**, **fill-in-the-blank**. |
 | **Gloss** | **In from the start.** Tap a target word in any lesson → gloss, **reusing the reader's word-tokenization + popover components**. Source: the unit's `glossary` (offline) first, LLM fallback if a key is set. |
 | **Hierarchy** | **Course → Unit → Lesson → Exercise.** Units are the "levels." |
-| **Import granularity** | A file is a **course fragment**: course meta + **one or more units**. Merges into the course at **course / unit / lesson** granularity — so you can generate 2 units today, 2 more tomorrow, **and add lessons to existing units**. |
+| **Import granularity** | A file is a **course fragment**: course meta + **one or more units**. Merges at **course / unit / lesson** granularity — generate 2 units today, 2 more tomorrow, **and add lessons to existing units**. Import accepts a single `.json` **or a `.zip` of many `.json` fragments** (bulk import multiple units/courses at once). |
+| **Multiple languages** | Learn **many languages at once** — courses are grouped by target language on the Learn home (like the reader library groups books). Every per-language structure (courses, the word bank §Cross-section) is keyed by language. |
+| **Cross-section** | Read and Learn **share a per-language vocabulary "word bank"** (DESIGN.md §11): both write encounters to it, both can read it. This is the substrate for future features — *create lesson from word bank*, *pre-gloss unknown words while reading*. Built simple now, extended later. |
 | **Game layer** | **Light** — no hearts/streak economy. **Rich animations** + **full stats**. |
 | **Lesson flow** | **Instant check**; wrong answers show the correct one and **re-queue** until all correct. |
 | **Progression** | Lessons unlock in order within a unit; a unit unlocks when the prior is complete. (Sequential, easily relaxed.) |
@@ -161,12 +163,14 @@ Dexie tables. Reader unchanged.
 **Done when:** flip between Read and Learn; Learn shows its empty state in both themes.
 
 ### L1 — Import a course fragment + the path
-Learn-file parser: parse → validate (clear errors) → **merge-persist** (course/unit/lesson
-upsert). Learn home renders the **course → unit → lesson path** (units as levels, lesson
-bubbles, sequential-unlock lock state), reusing card/rule/numeral styling. Persian renders
-RTL in its script font.
-**Done when:** import a generated fragment and see the path; a second fragment for the same
-course appends units *and* adds lessons to an existing unit; a malformed file is rejected clearly.
+Learn-file parser: accept a `.json` fragment **or a `.zip` of many `.json` fragments**
+(unzip with the already-bundled `fflate`); parse each → validate (clear errors) →
+**merge-persist** (course/unit/lesson upsert). Learn home renders **courses grouped by
+language**, each a **course → unit → lesson path** (units as levels, lesson bubbles,
+sequential-unlock lock state), reusing card/rule/numeral styling. Persian renders RTL.
+**Done when:** import a single fragment *and* a zip of several; a second fragment for the
+same course appends units *and* adds lessons to an existing unit; a malformed file is
+rejected clearly; two courses in different languages appear under their own language groups.
 
 ### L2 — Lesson player (with gloss)
 The teaching screen + four exercise UIs, square/on-brand, RTL-aware. Instant check +
@@ -215,15 +219,25 @@ Shipped in L4, copied from the app for a specific course. Structure:
 >     existing units.*
 > - Source material: `{PASTE YOUR SOURCE CONTENT HERE}`
 >
+> **How each item is shown to the learner** (write content that fits these UXs):
+> - `teach` — a full-screen teaching card (title + explanation + optional example pairs),
+>   no input; the learner reads and taps Continue. Use to introduce a concept before drills.
+> - `choice` — a question with tappable options; one correct. Distractors must be plausible.
+> - `build` — the learner taps word tiles in order to construct the target sentence;
+>   `tiles` must include the correct words **plus** believable extra (distractor) tiles.
+> - `match` — two columns of tiles the learner pairs up (target ↔ base). 3–5 pairs.
+> - `blank` — a sentence with a gap; the learner picks the word that fills it.
+> - Any target word is tappable for a gloss, so include a unit `glossary` for the vocabulary.
+>
 > **First, before generating anything, ask me clarifying questions** to confirm how to
 > structure this — how much of the material warrants a unit vs a lesson, the level, the
 > scope, whether to extend existing units or add new ones, ordering, and anything ambiguous.
 > **Decide the number of units and lessons yourself** from the amount and nature of the
 > content — do not use a fixed count. Only after I confirm, output the JSON (course meta +
 > the new/updated units). Requirements: stable unique ids and correct indices; a unit
-> `glossary` covering the vocabulary used; **teaching (`teach`) screens** to introduce new
-> concepts before drilling them; plausible near-miss distractors; short, level-appropriate
-> sentences; natural base-language translations.
+> `glossary` covering the vocabulary used; `teach` screens before drilling new concepts;
+> plausible near-miss distractors; short, level-appropriate sentences; natural
+> base-language translations.
 
 ---
 

@@ -1,6 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
 import { TxError, type TxErrorCode } from '../translation/openaiClient'
 import { translatePhrase, translateWord, type Lookup } from '../translation/wordTranslator'
+import { useSpeak } from '../tts/useSpeak'
+import { SpeakerButton } from '../tts/SpeakerButton'
 
 type Status =
   | { state: 'loading' }
@@ -24,6 +26,7 @@ export function SelectionPopover({
 }) {
   const [status, setStatus] = useState<Status>({ state: 'loading' })
   const [attempt, setAttempt] = useState(0)
+  const { say, hasKey } = useSpeak()
   const ref = useRef<HTMLDivElement>(null)
   const [style, setStyle] = useState<CSSProperties>({ visibility: 'hidden' })
 
@@ -62,7 +65,12 @@ export function SelectionPopover({
     <div className="popover" ref={ref} style={style} role="status">
       <div className="popover-body">
         {status.state === 'loading' && <span className="muted">…</span>}
-        {status.state === 'done' && <span className="popover-gloss">{status.text}</span>}
+        {status.state === 'done' && (
+          <span className="gloss-row">
+            <span className="popover-gloss">{status.text}</span>
+            {hasKey && <SpeakerButton onClick={() => say(lookup.text)} />}
+          </span>
+        )}
         {status.state === 'error' &&
           (status.code === 'no-key' ? (
             <a className="btn" href="#/settings">

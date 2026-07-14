@@ -19,6 +19,7 @@ import { useFitText } from '../reader/useFitText'
 import { useSwipe } from '../reader/useGestures'
 import { useOrientation } from '../reader/useOrientation'
 import { useSentenceTranslation } from '../reader/useSentenceTranslation'
+import { useSpeak } from '../tts/useSpeak'
 import { recordEncounter } from '../vocab/bank'
 import { ProgressBar, Rule } from '../ui'
 
@@ -85,6 +86,7 @@ export default function Reader({ bookId }: { bookId: string }) {
   const [overflowing, setOverflowing] = useState(false)
 
   const orientation = useOrientation()
+  const { say: speakSentence, hasKey: canSpeak } = useSpeak()
 
   // hold-to-peek: press and hold in portrait shows the English of this sentence
   const [peek, setPeek] = useState(false)
@@ -270,6 +272,15 @@ export default function Reader({ bookId }: { bookId: string }) {
           </button>
         ) : (
           <span className="reader-title">{book.title}</span>
+        )}
+        {canSpeak && (
+          <button
+            className="icon-btn"
+            aria-label="Play sentence"
+            onClick={() => sentence && speakSentence(sentence.text)}
+          >
+            ♪
+          </button>
         )}
         <button
           className={quoteId ? 'icon-btn bookmarked' : 'icon-btn'}

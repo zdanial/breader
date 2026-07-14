@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react'
+import { SpeakerButton } from '../tts/SpeakerButton'
+import { useSpeak } from '../tts/useSpeak'
 import { resolveGloss, type GlossSource } from './gloss'
 
 /** A gloss chip anchored above a word — reuses the reader's chip styling. */
@@ -15,6 +17,7 @@ export function GlossChip({
 }) {
   const [text, setText] = useState<string | null>(null)
   const [state, setState] = useState<'loading' | 'done' | 'none'>('loading')
+  const { say, hasKey } = useSpeak()
   const ref = useRef<HTMLDivElement>(null)
   const [style, setStyle] = useState<CSSProperties>({ visibility: 'hidden' })
 
@@ -48,7 +51,12 @@ export function GlossChip({
       <div className="popover" ref={ref} style={style} role="status">
         <div className="popover-body">
           {state === 'loading' && <span className="muted">…</span>}
-          {state === 'done' && <span className="popover-gloss">{text}</span>}
+          {state === 'done' && (
+            <span className="gloss-row">
+              <span className="popover-gloss">{text}</span>
+              {hasKey && <SpeakerButton onClick={() => say(word)} />}
+            </span>
+          )}
           {state === 'none' && <span className="muted">add a key for glosses</span>}
         </div>
       </div>

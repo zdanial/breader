@@ -61,21 +61,11 @@ export interface CoverImage {
   blob: Blob
 }
 
-// ── The bank: saved words, quotes, highlights ────────────────────────────────
-// Words and quotes are the reader's learning record: they keep a denormalized
-// book title and SURVIVE book deletion (bookId is stripped, jump-back disabled).
-// Highlights belong to the text itself and are removed with their book.
-
-export interface SavedWord {
-  id: string
-  text: string // word or phrase as selected
-  translation?: string // snapshot of the cached translation, if available
-  sentence: string // context sentence
-  targetLang: string
-  bookId?: string
-  bookTitle: string
-  createdAt: number
-}
+// ── The bank: quotes + highlights ────────────────────────────────────────────
+// Single saved words live in the shared word bank (`vocab`, §11) now — this is
+// the multi-word record. Quotes keep a denormalized book title and SURVIVE book
+// deletion (bookId is stripped, jump-back disabled). Highlights belong to the
+// text itself and are removed with their book.
 
 export interface SavedQuote {
   id: string
@@ -110,20 +100,43 @@ export interface StoredFile {
 // Per-language knowledge model both Read and Learn write to and can read from.
 // The substrate for future pre-gloss + create-lesson-from-word-bank features.
 
+export interface VocabOrigin {
+  channel: 'reader' | 'learn'
+  bookId?: string
+  courseId?: string
+  unitId?: string
+  context?: string // the sentence the word first appeared in
+}
+
 export interface VocabEntry {
   id: string // `${lang}:${lemma}`
-  lang: string // target language
-  lemma: string // normalized key (lowercased surface form for now)
-  surface?: string // an example form actually seen
-  gloss?: string // best-known base-language meaning
+  lang: string // target language (primary subtag)
+  lemma: string // normalized surface-form key
+  surface?: string // an example form actually seen (keeps script/case)
+  gloss?: string // best-known base-language meaning — required to build review
+  root?: string // reserved for the future forms-connector (null in v1)
+
+  // Anki-style SM-2 scheduler, auto-graded from outcomes (no rating buttons)
+  tracked: boolean // scheduled review card vs. logged-only exposure
+  ease: number // SM-2 ease factor (default 2.5, floor 1.3)
+  intervalDays: number // current review interval
+  dueAt?: number // next-review timestamp (ms); absent when not tracked
+  reps: number // consecutive successful reviews
+  lapses: number // times reset by a miss
+  lastGrade?: 0 | 1 | 2 | 3 // Again | Hard | Good | Easy
+  lastReviewedAt?: number
+
+  // exposure + provenance
   seen: number
   correct: number
   incorrect: number
-  status: 'new' | 'learning' | 'known'
+  lookups: number // reader look-ups; promotes to tracked at >= 2
   firstSeenAt: number
   lastSeenAt: number
+  origin?: VocabOrigin // first-seen provenance
   sources: Array<'reader' | 'learn' | 'saved'>
 }
+// status (new/learning/known) is derived from reps/intervalDays — see vocab/bank
 
 // ── Learn section (see LEARN.md) ─────────────────────────────────────────────
 
@@ -178,7 +191,6 @@ export interface LearnProgress {
 
 export interface LearnStats {
   id: 'singleton'
-  xp: number
   totalExercises: number
   totalCorrect: number
   totalTimeMs: number
@@ -190,7 +202,6 @@ export interface LearnDaily {
   id: string // `${lang}:${day}`
   lang: string
   day: string // YYYY-MM-DD
-  xp: number
   exercises: number
   correct: number
   timeMs: number
@@ -220,7 +231,6 @@ class BreaderDB extends Dexie {
   settings!: Table<Settings, string>
   files!: Table<StoredFile, string>
   covers!: Table<CoverImage, string>
-  savedWords!: Table<SavedWord, string>
   savedQuotes!: Table<SavedQuote, string>
   highlights!: Table<Highlight, string>
   vocab!: Table<VocabEntry, string>
@@ -278,6 +288,79 @@ class BreaderDB extends Dexie {
     this.version(8).stores({
       learnDaily: 'id, day, lang',
     })
+    // v9: word bank v1 (DESIGN.md §11) — SM-2 scheduler fields on vocab, merge
+    // savedWords in, drop xp. Index by [lang+dueAt] (untracked rows have no
+    // dueAt, so they fall out of the index — the tracked/review pool for free).
+    this.version(9)
+      .stores({
+        vocab: 'id, lang, dueAt, lastSeenAt, [lang+dueAt]',
+        savedWords: null, // merged into vocab
+      })
+      .upgrade(async (tx) => {
+        const DAY = 86_400_000
+        const now = Date.now()
+        const norm = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+        const prim = (l: string) => (l ?? '').toLowerCase().split('-')[0]
+
+        // 1. upgrade existing vocab rows to the SM-2 shape
+        await tx
+          .table('vocab')
+          .toCollection()
+          .modify((v: Record<string, unknown>) => {
+            const sources = Array.isArray(v.sources) ? (v.sources as string[]) : []
+            const status = v.status as string | undefined
+            const intent = sources.includes('learn') || sources.includes('saved')
+            v.tracked = intent
+            v.ease = 2.5
+            v.reps = status === 'known' ? 2 : status === 'learning' ? 1 : 0
+            v.lapses = 0
+            v.intervalDays = status === 'known' ? 7 : status === 'learning' ? 1 : 0
+            v.lookups = sources.includes('reader') ? ((v.seen as number) ?? 0) : 0
+            if (intent) {
+              const last = (v.lastSeenAt as number) ?? now
+              v.dueAt = Math.max(now, last + (v.intervalDays as number) * DAY)
+            }
+            delete v.status
+          })
+
+        // 2. merge savedWords → vocab (single words become tracked entries;
+        //    multi-word saves become phrase quotes so nothing is lost)
+        const saved = await tx.table('savedWords').toArray()
+        for (const s of saved) {
+          const lang = prim(s.targetLang)
+          const single = !/\s/.test((s.text ?? '').trim())
+          if (single) {
+            const lemma = norm(s.text ?? '')
+            if (!lemma) continue
+            const id = `${lang}:${lemma}`
+            const prev = (await tx.table('vocab').get(id)) as Record<string, unknown> | undefined
+            const base: Record<string, unknown> = prev ?? {
+              id, lang, lemma, seen: 0, correct: 0, incorrect: 0, lookups: 0,
+              ease: 2.5, intervalDays: 0, reps: 0, lapses: 0, tracked: false,
+              firstSeenAt: s.createdAt ?? now, lastSeenAt: s.createdAt ?? now, sources: [],
+            }
+            base.surface = base.surface ?? s.text
+            if (s.translation && !base.gloss) base.gloss = s.translation
+            base.tracked = true
+            if (base.dueAt == null) { base.intervalDays = 0; base.dueAt = now }
+            const src = base.sources as string[]
+            if (!src.includes('saved')) src.push('saved')
+            if (!base.origin) base.origin = { channel: 'reader', bookId: s.bookId, context: s.sentence }
+            await tx.table('vocab').put(base)
+          } else {
+            await tx.table('savedQuotes').put({
+              id: s.id ?? crypto.randomUUID(),
+              text: s.text, translation: s.translation, targetLang: s.targetLang,
+              bookId: s.bookId, bookTitle: s.bookTitle, author: undefined,
+              sentenceIndex: -1, createdAt: s.createdAt ?? now,
+            })
+          }
+        }
+
+        // 3. drop xp
+        await tx.table('learnStats').toCollection().modify((r: Record<string, unknown>) => { delete r.xp })
+        await tx.table('learnDaily').toCollection().modify((r: Record<string, unknown>) => { delete r.xp })
+      })
   }
 }
 

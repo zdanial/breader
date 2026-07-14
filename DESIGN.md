@@ -418,51 +418,107 @@ per-language **word bank**: a knowledge model of what the user has encountered a
 they know it. Built simple now; it becomes the substrate for advanced features later. Lives
 in a shared module (`src/vocab/`) owned by neither section.
 
-### Model (start simple)
+### v1 design (2026-07-14)
+
+The bank is the spine of the learning loop: it is the record of **which words the user
+knows and how well**, and it powers **endless review content that recycles known words**
+instead of introducing new ones (the Duolingo effect). It is the single source of truth for
+words — the old separate `savedWords` table folds into it. The multi-word **quote bank**
+(`savedQuotes`) stays separate.
+
+#### Unit
+One entry = one **normalized surface form** per language (`lowercased`, punctuation
+stripped). Different inflected forms are separate entries **for now**; homographs collapse. A
+nullable `root`/`group` field is reserved (empty in v1) so a future **forms connector** can
+cluster conjugations/tenses without a migration.
+
+#### Model
 ```ts
 interface VocabEntry {
-  id: string           // `${lang}:${lemma}`
-  lang: string         // target language
-  lemma: string        // normalized key (lowercased surface form for now; real
-                       // lemmatization is a fast-follow)
-  surface?: string     // an example form actually seen
-  gloss?: string       // best-known base-language meaning
-  seen: number         // total encounters
-  correct: number      // Learn: answered correctly
+  id: string            // `${lang}:${lemma}`
+  lang: string          // target language (primary subtag)
+  lemma: string         // normalized key (surface form for now)
+  surface?: string      // an example form actually seen (keeps script/case)
+  gloss?: string        // best-known base-language meaning — required to build review
+  root?: string         // reserved for the future forms-connector (null in v1)
+
+  // Anki-style SM-2 scheduler (auto-graded from outcomes; no rating buttons)
+  tracked: boolean      // scheduled card vs. logged-only exposure
+  ease: number          // SM-2 ease factor (default 2.5, floor 1.3)
+  intervalDays: number  // current interval
+  dueAt: number         // next review timestamp (ms)
+  reps: number          // consecutive successful reviews
+  lapses: number        // times reset by a miss
+  lastGrade?: 0 | 1 | 2 | 3   // Again | Hard | Good | Easy
+  lastReviewedAt?: number
+
+  // exposure + provenance
+  seen: number
+  correct: number
   incorrect: number
-  status: 'new' | 'learning' | 'known'   // familiarity (simple rules over the counts)
+  lookups: number       // reader look-ups (promotes to tracked at >= 2)
   firstSeenAt: number
   lastSeenAt: number
+  origin?: { channel: 'reader' | 'learn'; bookId?: string; courseId?: string
+             unitId?: string; context?: string }   // first-seen provenance
   sources: ('reader' | 'learn' | 'saved')[]
 }
 ```
+`status` (`new` / `learning` / `known`) is **derived** from `reps`/`intervalDays`, not stored.
 
-### Who writes (both sections, from day one)
-- **Reader:** tapping/glossing a word, or saving it, upserts an entry (`seen++`, records
-  `gloss`, adds source `reader`/`saved`).
-- **Learn:** a word appearing in an exercise upserts (`seen++`); a graded answer bumps
-  `correct`/`incorrect`; source `learn`. `status` is derived from the counts.
+#### Enrollment (two-tier)
+- **Every** encounter is *logged*: `seen++`, `lastSeenAt`, refresh `gloss` — good for stats
+  and "what I've met while reading."
+- A word becomes a *scheduled* card (`tracked`, gets `dueAt`) only on **intent**: it is a
+  Learn target word, explicitly saved in the reader, or looked up `>= 2` times. A single
+  stray reader tap never clutters the review pool.
 
-### Who reads (enables the future features the user named)
-- **Reader → pre-gloss:** while reading, auto-gloss words whose `status` is `new`/`learning`
-  (skip `known` ones) — "knowing what the user doesn't know."
-- **Learn → create lesson from word bank:** feed weak/`learning` words into the generator
-  prompt (or a built-in practice generator) to make targeted lessons.
-- **Stats:** vocabulary size per language, growth over time.
+#### Scheduler (SM-2, signals → grades, no buttons)
+Implicit signals map to SM-2 grades automatically:
 
-### Principles
-- **Language-keyed** so multi-language study stays separate; the same lemma in two languages
-  is two entries.
-- **Consistent normalization** shared by both sections so a word learned in Learn matches
-  the same word tapped in the reader.
-- **Build v0 early** (a Dexie table + upsert API, wired into the reader's word-tap and Learn
-  L2 exercises) so real data accumulates before the advanced readers are built.
+| signal | grade |
+| --- | --- |
+| Learn correct, first try | Good (2) |
+| Learn correct after a re-queue | Hard (1) |
+| Learn wrong | Again (0) — lapse, interval collapses |
+| Reader look-up of a *tracked* word | Again (0) — you forgot it |
+| Reader save / first Learn exposure | seed new (due now) |
 
-### 11.1 Planned refinements (to design later, once lessons work)
-User direction (2026-07-13) — do NOT implement yet; design a system around this after L2:
-1. **Reader save split:** one glossed word → **word bank**; a multi-word highlight → the
-   **quote bank** (the save button should read "quote bank" for multi-word selections).
-2. **Track source + language** on every entry (reader vs learn; per target language) — the
-   model already has `sources` + `lang`; formalize how they're used.
-3. **Cross-language:** stats over the word bank and **aligning word banks across languages**
-   (e.g. cognates, shared roots, a unified vocabulary view).
+On grade: `Again` → `reps=0`, `interval=0` (due soon), `lapses++`, `ease-=0.2`; `Hard` →
+`interval*=1.2`, `ease-=0.15`; `Good` → `interval = interval? interval*ease : 1`; ease floors
+at 1.3. `dueAt = now + intervalDays`.
+
+#### Local review engine (no LLM)
+Because every entry carries a word **and its gloss**, review exercises are assembled in code:
+`buildReviewSession(lang, scope, size≈12)` pulls tracked words with `dueAt <= now` (due-first,
+padded with most-overdue/weakest), then builds `choice` (gloss + 3 same-language distractor
+glosses), `match` (5 pairs), `blank`, and flashcard items — **free, offline, infinitely
+repeatable, always "no new words."** Falls back to flashcards if a language has `< 4` glossed
+words. The session is an ad-hoc `LessonItem[]` run through the existing lesson player; grades
+feed the scheduler (not `learnProgress`). Entry point: a per-language **"review · N due"**
+card on Learn home, optionally narrowed to a course/unit via `origin`. LLM-authored
+sentence-context review is a later, optional richer layer.
+
+#### Who reads the bank
+- **Review engine** — due/weak words → sessions (above).
+- **Generator recycling** — the per-language generator helper emits a **separate copyable
+  "known words" block** (word + gloss + recycle instructions) the user pastes alongside their
+  prompt, so newly authored lessons reuse known vocabulary and mark which words are new
+  (new words auto-enroll on completion).
+- **Reader pre-gloss / stats** — vocabulary size, growth, strength distribution per language.
+
+#### Cleanup shipped with v1
+- **XP removed entirely** — `learnStats.xp`, `learnDaily.xp`, and the `xp` writes in the
+  lesson `finish()` are gone. Progress is tracked by streak, accuracy, words, and time.
+- **`savedWords` merged into `vocab`** — a saved word is a `tracked` entry; its context
+  sentence + book move into `origin`. Table dropped after migration. `savedQuotes` (the quote
+  bank) is unchanged. The Saved screen reads `vocab(tracked)` + quotes.
+- **Dexie v9** performs the migration.
+
+### 11.1 Deferred (documented, not built)
+1. **Forms/root connector** — cluster inflected forms under a shared `root`.
+2. **Passive-reading review** — a *due* word read in the reader without a look-up counts as a
+   successful review (reading naturally reinforces vocab).
+3. **LLM sentence-context review** — richer generated review beyond the local engine.
+4. **Cross-language alignment** — cognates, shared roots, a unified cross-language vocabulary
+   view.

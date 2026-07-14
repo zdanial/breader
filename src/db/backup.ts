@@ -6,7 +6,7 @@ import { db } from './schema'
 
 const ALL_TABLES = [
   'books', 'sentences', 'chapters', 'translations', 'settings', 'files', 'covers',
-  'savedWords', 'savedQuotes', 'highlights', 'vocab',
+  'savedQuotes', 'highlights', 'vocab',
   'learnCourses', 'learnUnits', 'learnLessons', 'learnProgress', 'learnStats', 'learnFiles',
   'learnDaily', 'audio',
 ]

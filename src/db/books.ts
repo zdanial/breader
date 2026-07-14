@@ -13,8 +13,8 @@ export async function deleteBook(bookId: string): Promise<void> {
       db.translations,
       db.covers,
       db.highlights,
-      db.savedWords,
       db.savedQuotes,
+      db.vocab,
     ],
     async () => {
       await db.sentences.where('bookId').equals(bookId).delete()
@@ -22,8 +22,11 @@ export async function deleteBook(bookId: string): Promise<void> {
       await db.translations.where('bookId').equals(bookId).delete()
       await db.highlights.where('bookId').equals(bookId).delete()
       // the bank survives deletion — just detach so jump-back knows it's gone
-      await db.savedWords.where('bookId').equals(bookId).modify({ bookId: undefined })
       await db.savedQuotes.where('bookId').equals(bookId).modify({ bookId: undefined })
+      // word-bank entries keep their provenance but lose the dead book ref
+      await db.vocab.filter((v) => v.origin?.bookId === bookId).modify((v) => {
+        if (v.origin) v.origin.bookId = undefined
+      })
       await db.files.delete(bookId)
       await db.covers.delete(bookId)
       await db.books.delete(bookId)

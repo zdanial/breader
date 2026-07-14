@@ -2,8 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useRef, useState } from 'react'
 import { db, type LearnCourse, type LearnLesson, type LearnUnit } from '../db/schema'
 import { importLearnFile } from '../learn/importCourse'
+import { deleteCourse, resetCourseProgress } from '../learn/ops'
 import { navigate } from '../router'
-import { Button, Rule, SectionTabs, Wordmark } from '../ui'
+import { Button, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
 
 const langName = (code: string) =>
   new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
@@ -17,6 +18,8 @@ export default function LearnHome() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [menuCourse, setMenuCourse] = useState<LearnCourse | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const doneLessons = useMemo(
     () => new Set((progress ?? []).filter((p) => p.completed).map((p) => p.lessonId)),
@@ -56,6 +59,11 @@ export default function LearnHome() {
     <div className="page">
       <header className="topbar">
         <Wordmark />
+        {courses && courses.length > 0 && (
+          <a className="icon-btn" href="#/learn-stats" aria-label="Stats">
+            ▰
+          </a>
+        )}
         <a className="icon-btn" href="#/settings" aria-label="Settings">
           ⚙
         </a>
@@ -90,8 +98,18 @@ export default function LearnHome() {
 
               return (
                 <div key={course.id} className="course" dir={course.dir}>
-                  <div className="course-title" dir="ltr">
-                    {course.title}
+                  <div className="course-title-row" dir="ltr">
+                    <span className="course-title">{course.title}</span>
+                    <button
+                      className="icon-btn"
+                      aria-label={`Options for ${course.title}`}
+                      onClick={() => {
+                        setMenuCourse(course)
+                        setConfirmDelete(false)
+                      }}
+                    >
+                      ···
+                    </button>
                   </div>
                   {unitsOf(course.id).map((unit) => (
                     <div key={unit.id} className="unit">
@@ -143,6 +161,38 @@ export default function LearnHome() {
           {busy ? 'importing…' : '+ import unit'}
         </Button>
       </div>
+
+      {menuCourse && (
+        <Sheet onClose={() => setMenuCourse(null)}>
+          <h2 className="sheet-title">{menuCourse.title}</h2>
+          <Rule />
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              await resetCourseProgress(menuCourse.id)
+              setMenuCourse(null)
+            }}
+          >
+            reset progress
+          </Button>
+          <Button
+            variant={confirmDelete ? 'danger' : 'secondary'}
+            onClick={async () => {
+              if (!confirmDelete) {
+                setConfirmDelete(true)
+                return
+              }
+              await deleteCourse(menuCourse.id)
+              setMenuCourse(null)
+            }}
+          >
+            {confirmDelete ? 'tap again to delete course' : 'delete course'}
+          </Button>
+          <Button variant="secondary" onClick={() => setMenuCourse(null)}>
+            cancel
+          </Button>
+        </Sheet>
+      )}
     </div>
   )
 }

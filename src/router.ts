@@ -6,6 +6,7 @@ export type Route =
   | { name: 'settings' }
   | { name: 'saved' }
   | { name: 'learn' }
+  | { name: 'learn-stats' }
   | { name: 'lesson'; lessonId: string }
 
 function parse(hash: string): Route {
@@ -17,6 +18,7 @@ function parse(hash: string): Route {
   if (path === '/settings') return { name: 'settings' }
   if (path === '/saved') return { name: 'saved' }
   if (path === '/learn') return { name: 'learn' }
+  if (path === '/learn-stats') return { name: 'learn-stats' }
   return { name: 'library' }
 }
 

@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useRoute } from './router'
 import { useSettings } from './db/settings'
 import LearnHome from './routes/LearnHome'
+import LearnStats from './routes/LearnStats'
 import Lesson from './routes/Lesson'
 import Library from './routes/Library'
 import Reader from './routes/Reader'
@@ -40,6 +41,8 @@ export default function App() {
       return <Saved />
     case 'learn':
       return <LearnHome />
+    case 'learn-stats':
+      return <LearnStats />
     case 'lesson':
       return <Lesson key={route.lessonId} lessonId={route.lessonId} />
     default:

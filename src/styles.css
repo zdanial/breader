@@ -475,11 +475,41 @@ p {
   gap: 14px;
   margin-bottom: 8px;
 }
+.course-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
 .course-title {
   font-family: var(--font-serif);
   font-size: 20px;
   color: var(--fg);
   line-height: 1.05;
+}
+
+/* stats screen */
+.stat-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-n {
+  font-family: var(--font-serif);
+  font-size: 34px;
+  line-height: 0.9;
+  color: var(--fg);
+}
+.stat-l {
+  font: 600 11px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
 }
 .unit {
   display: flex;

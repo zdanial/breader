@@ -522,3 +522,26 @@ sentence-context review is a later, optional richer layer.
 3. **LLM sentence-context review** — richer generated review beyond the local engine.
 4. **Cross-language alignment** — cognates, shared roots, a unified cross-language vocabulary
    view.
+
+---
+
+## 12. Navigation — language-first (2026-07-14)
+
+The app's primary axis is the **language**, not the mode. Two fixtures:
+
+- **Top switcher `read | learn`** — the mode, unchanged.
+- **Bottom `LanguageBar`** — a persistent bar of one tab per study language, plus a trailing
+  `＋`. Selecting a language sets a global `settings.activeLang`; it scopes *everything*: read
+  shows that language's books, learn its courses + review, and the word bank (Saved) its words.
+
+The study-language set is derived from any content — books, courses, or word-bank entries —
+plus explicitly added (empty) languages in `settings.languages` (`useLanguages()`).
+
+The `＋` is **mode-aware**:
+- **read** → import a book (language auto-detected).
+- **learn** → a sheet: *generate instructions* (the per-language prompt helper), *import
+  content* (course/unit JSON/zip), *add language* (a picker that adds + selects a new tab).
+
+The bar lives on the two home screens; pushed detail screens (Saved, Stats, Settings, Reader,
+Lesson, Review) have a back button and inherit the active language. English (the base
+language) is never a tab. See `src/db/languages.ts` + `LanguageBar` in `src/ui`.

@@ -288,6 +288,7 @@ p {
   flex: 0 0 auto;
   min-height: 52px;
   padding: 0 20px;
+  background: none;
   font: 700 14px var(--font-sans);
   color: var(--muted);
   white-space: nowrap;
@@ -302,6 +303,7 @@ p {
   flex: 0 0 auto;
   width: 56px;
   min-height: 52px;
+  background: none;
   font-size: 24px;
   line-height: 1;
   color: var(--fg);

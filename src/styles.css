@@ -245,6 +245,23 @@ p {
   font-size: 30px;
 }
 
+/* section switcher (Read | Learn) */
+.section-tabs {
+  display: flex;
+  gap: 22px;
+  padding: 2px 20px 12px;
+}
+.section-tabs a {
+  font: 700 15px var(--font-sans);
+  color: var(--muted);
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+}
+.section-tabs a.active {
+  color: var(--fg);
+  border-bottom-color: var(--fg);
+}
+
 /* ── library ────────────────────────────────────────────────────────────── */
 
 .shelf {

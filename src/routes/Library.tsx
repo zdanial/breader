@@ -6,7 +6,7 @@ import { updateSettings, useSettings } from '../db/settings'
 import { commitImport, prepareImport, type ImportPreview } from '../parsing/importBook'
 import { acceptedExtensions } from '../parsing/registry'
 import { navigate } from '../router'
-import { Button, ProgressBar, Rule, Sheet, Wordmark } from '../ui'
+import { Button, ProgressBar, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
 
 const LANGS: Array<[string, string]> = [
   ['de', 'German'],
@@ -172,6 +172,7 @@ export default function Library() {
           ⚙
         </a>
       </header>
+      <SectionTabs active="read" />
 
       <main className="shelf">
         {books && !settings.openaiKey && (

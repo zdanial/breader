@@ -5,13 +5,18 @@ export type Route =
   | { name: 'reader'; bookId: string }
   | { name: 'settings' }
   | { name: 'saved' }
+  | { name: 'learn' }
+  | { name: 'lesson'; lessonId: string }
 
 function parse(hash: string): Route {
   const path = hash.replace(/^#/, '')
   const book = path.match(/^\/book\/([^/]+)$/)
   if (book) return { name: 'reader', bookId: book[1] }
+  const lesson = path.match(/^\/lesson\/([^/]+)$/)
+  if (lesson) return { name: 'lesson', lessonId: lesson[1] }
   if (path === '/settings') return { name: 'settings' }
   if (path === '/saved') return { name: 'saved' }
+  if (path === '/learn') return { name: 'learn' }
   return { name: 'library' }
 }
 

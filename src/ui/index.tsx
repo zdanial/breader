@@ -16,6 +16,20 @@ export function Rule({ style }: { style?: React.CSSProperties }) {
   return <span className="rule" style={style} />
 }
 
+/** Top-level Read | Learn section switcher, shared by both home screens. */
+export function SectionTabs({ active }: { active: 'read' | 'learn' }) {
+  return (
+    <div className="section-tabs">
+      <a className={active === 'read' ? 'active' : ''} href="#/">
+        read
+      </a>
+      <a className={active === 'learn' ? 'active' : ''} href="#/learn">
+        learn
+      </a>
+    </div>
+  )
+}
+
 type BtnVariant = 'primary' | 'secondary' | 'danger'
 export function Button({
   variant = 'primary',

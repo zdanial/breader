@@ -124,6 +124,68 @@ export interface VocabEntry {
   sources: Array<'reader' | 'learn' | 'saved'>
 }
 
+// ── Learn section (see LEARN.md) ─────────────────────────────────────────────
+
+export interface LearnCourse {
+  id: string
+  title: string
+  targetLang: string
+  baseLang: string
+  dir: 'ltr' | 'rtl'
+  createdAt: number
+}
+
+export interface LearnUnit {
+  id: string
+  courseId: string
+  index: number
+  title: string
+  glossary?: Array<{ word: string; gloss: string; note?: string }>
+}
+
+// A lesson item is a teaching screen or one of the graded exercise types.
+export type LessonItem =
+  | { type: 'teach'; title: string; body: string; examples?: Array<[string, string]>; note?: string }
+  | { type: 'choice'; prompt: string; choices: string[]; answer: number; note?: string; translation?: string }
+  | { type: 'build'; prompt: string; tiles: string[]; answer: string[]; accept?: string[][]; note?: string }
+  | { type: 'match'; pairs: Array<[string, string]>; note?: string }
+  | { type: 'blank'; prompt: string; choices: string[]; answer: number; translation?: string; note?: string }
+
+export interface LearnLesson {
+  id: string
+  unitId: string
+  courseId: string
+  index: number
+  title: string
+  items: LessonItem[]
+}
+
+export interface LearnProgress {
+  lessonId: string
+  courseId: string
+  unitId: string
+  completed: boolean
+  bestAccuracy: number
+  attempts: number
+  lastAt: number
+}
+
+export interface LearnStats {
+  id: 'singleton'
+  xp: number
+  totalExercises: number
+  totalCorrect: number
+  totalTimeMs: number
+  activeDays: string[]
+}
+
+export interface LearnFile {
+  id: string // course fragment id (uuid) — the original imported json/zip retained
+  name: string
+  blob: Blob
+  createdAt: number
+}
+
 // ── Database ─────────────────────────────────────────────────────────────────
 
 class BreaderDB extends Dexie {
@@ -138,6 +200,12 @@ class BreaderDB extends Dexie {
   savedQuotes!: Table<SavedQuote, string>
   highlights!: Table<Highlight, string>
   vocab!: Table<VocabEntry, string>
+  learnCourses!: Table<LearnCourse, string>
+  learnUnits!: Table<LearnUnit, string>
+  learnLessons!: Table<LearnLesson, string>
+  learnProgress!: Table<LearnProgress, string>
+  learnStats!: Table<LearnStats, string>
+  learnFiles!: Table<LearnFile, string>
 
   constructor() {
     super('breader')
@@ -166,6 +234,15 @@ class BreaderDB extends Dexie {
     // v5: shared vocabulary word bank (reader ↔ learn)
     this.version(5).stores({
       vocab: 'id, lang, status, lastSeenAt, [lang+status]',
+    })
+    // v6: Learn section — courses/units/lessons/progress/stats
+    this.version(6).stores({
+      learnCourses: 'id, targetLang, createdAt',
+      learnUnits: 'id, courseId, [courseId+index]',
+      learnLessons: 'id, unitId, courseId, [unitId+index]',
+      learnProgress: 'lessonId, courseId, unitId',
+      learnStats: 'id',
+      learnFiles: 'id, createdAt',
     })
   }
 }

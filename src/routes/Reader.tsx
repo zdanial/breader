@@ -19,6 +19,7 @@ import { useFitText } from '../reader/useFitText'
 import { useSwipe } from '../reader/useGestures'
 import { useOrientation } from '../reader/useOrientation'
 import { useSentenceTranslation } from '../reader/useSentenceTranslation'
+import { recordEncounter } from '../vocab/bank'
 import { ProgressBar, Rule } from '../ui'
 
 const pad2 = (n: number) => String(n).padStart(2, '0')
@@ -206,6 +207,9 @@ export default function Reader({ bookId }: { bookId: string }) {
       bookId: book.id,
       bookTitle: book.title,
     })
+    if (selection.start === selection.end) {
+      void recordEncounter({ lang: book.targetLang, word: text, gloss: translation, source: 'saved' })
+    }
   }, [book, sentence, selection, tokens, settings.model, settings.openaiKey])
 
   const handleToggleHighlight = useCallback(async () => {
@@ -416,6 +420,17 @@ export default function Reader({ bookId }: { bookId: string }) {
             }}
             kind={selection.start === selection.end ? 'word' : 'phrase'}
             anchor={selection.rect}
+            onResolved={(gloss) => {
+              // feed the shared word bank on single-word glosses
+              if (selection.start === selection.end) {
+                void recordEncounter({
+                  lang: book.targetLang,
+                  word: selectionText,
+                  gloss,
+                  source: 'reader',
+                })
+              }
+            }}
           />
           <ExplainTray
             key={selectionText}

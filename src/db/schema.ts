@@ -105,6 +105,25 @@ export interface StoredFile {
   blob: Blob // original import, kept for future re-parsing
 }
 
+// ── Shared vocabulary "word bank" (DESIGN.md §11) ────────────────────────────
+// Per-language knowledge model both Read and Learn write to and can read from.
+// The substrate for future pre-gloss + create-lesson-from-word-bank features.
+
+export interface VocabEntry {
+  id: string // `${lang}:${lemma}`
+  lang: string // target language
+  lemma: string // normalized key (lowercased surface form for now)
+  surface?: string // an example form actually seen
+  gloss?: string // best-known base-language meaning
+  seen: number
+  correct: number
+  incorrect: number
+  status: 'new' | 'learning' | 'known'
+  firstSeenAt: number
+  lastSeenAt: number
+  sources: Array<'reader' | 'learn' | 'saved'>
+}
+
 // ── Database ─────────────────────────────────────────────────────────────────
 
 class BreaderDB extends Dexie {
@@ -118,6 +137,7 @@ class BreaderDB extends Dexie {
   savedWords!: Table<SavedWord, string>
   savedQuotes!: Table<SavedQuote, string>
   highlights!: Table<Highlight, string>
+  vocab!: Table<VocabEntry, string>
 
   constructor() {
     super('breader')
@@ -142,6 +162,10 @@ class BreaderDB extends Dexie {
       savedWords: 'id, createdAt, targetLang, bookId',
       savedQuotes: 'id, createdAt, targetLang, bookId, [bookId+sentenceIndex]',
       highlights: 'id, sentenceId, bookId',
+    })
+    // v5: shared vocabulary word bank (reader ↔ learn)
+    this.version(5).stores({
+      vocab: 'id, lang, status, lastSeenAt, [lang+status]',
     })
   }
 }

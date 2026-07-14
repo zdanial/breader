@@ -15,10 +15,12 @@ export function SelectionPopover({
   lookup,
   kind,
   anchor,
+  onResolved,
 }: {
   lookup: Lookup
   kind: 'word' | 'phrase'
   anchor: DOMRect
+  onResolved?: (gloss: string) => void
 }) {
   const [status, setStatus] = useState<Status>({ state: 'loading' })
   const [attempt, setAttempt] = useState(0)
@@ -30,7 +32,11 @@ export function SelectionPopover({
     setStatus({ state: 'loading' })
     const run = kind === 'phrase' ? translatePhrase : translateWord
     run(lookup)
-      .then((result) => alive && setStatus({ state: 'done', text: result }))
+      .then((result) => {
+        if (!alive) return
+        setStatus({ state: 'done', text: result })
+        onResolved?.(result)
+      })
       .catch((e: unknown) => {
         if (!alive) return
         setStatus({ state: 'error', code: e instanceof TxError ? e.code : 'http' })

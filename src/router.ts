@@ -7,6 +7,7 @@ export type Route =
   | { name: 'saved' }
   | { name: 'learn' }
   | { name: 'learn-stats' }
+  | { name: 'learn-new'; courseId?: string }
   | { name: 'lesson'; lessonId: string }
 
 function parse(hash: string): Route {
@@ -19,6 +20,9 @@ function parse(hash: string): Route {
   if (path === '/saved') return { name: 'saved' }
   if (path === '/learn') return { name: 'learn' }
   if (path === '/learn-stats') return { name: 'learn-stats' }
+  if (path === '/learn-new') return { name: 'learn-new' }
+  const addLessons = path.match(/^\/learn-new\/([^/]+)$/)
+  if (addLessons) return { name: 'learn-new', courseId: addLessons[1] }
   return { name: 'library' }
 }
 

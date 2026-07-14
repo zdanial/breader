@@ -488,6 +488,20 @@ p {
   line-height: 1.05;
 }
 
+/* generator prompt box */
+.prompt-box {
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  padding: 12px;
+  font: 400 11.5px/1.5 ui-monospace, 'SF Mono', Menlo, monospace;
+  color: var(--fg-soft);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 320px;
+  overflow-y: auto;
+  margin: 0;
+}
+
 /* stats screen */
 .stat-grid {
   display: grid;

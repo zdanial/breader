@@ -72,7 +72,10 @@ export default function LearnHome() {
 
       <main className="shelf">
         {courses?.length === 0 && (
-          <p className="empty">no courses yet — import a unit to start learning.</p>
+          <p className="empty">
+            no courses yet —{' '}
+            <a href="#/learn-new">make one with your AI</a>, or import a unit file.
+          </p>
         )}
         {error && (
           <p className="error-text" style={{ textAlign: 'center' }}>
@@ -156,8 +159,17 @@ export default function LearnHome() {
           e.target.value = ''
         }}
       />
-      <div style={{ padding: '0 20px calc(20px + env(safe-area-inset-bottom))' }}>
-        <Button onClick={() => fileRef.current?.click()} disabled={busy} style={{ width: '100%' }}>
+      <div
+        style={{
+          padding: '0 20px calc(20px + env(safe-area-inset-bottom))',
+          display: 'flex',
+          gap: 10,
+        }}
+      >
+        <Button variant="secondary" onClick={() => navigate('/learn-new')} style={{ flex: 1 }}>
+          new course
+        </Button>
+        <Button onClick={() => fileRef.current?.click()} disabled={busy} style={{ flex: 1 }}>
           {busy ? 'importing…' : '+ import unit'}
         </Button>
       </div>
@@ -166,6 +178,7 @@ export default function LearnHome() {
         <Sheet onClose={() => setMenuCourse(null)}>
           <h2 className="sheet-title">{menuCourse.title}</h2>
           <Rule />
+          <Button onClick={() => navigate(`/learn-new/${menuCourse.id}`)}>+ add lessons</Button>
           <Button
             variant="secondary"
             onClick={async () => {

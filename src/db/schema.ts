@@ -185,6 +185,17 @@ export interface LearnStats {
   activeDays: string[]
 }
 
+// Per-language, per-day rollup — powers over-time and by-language stats.
+export interface LearnDaily {
+  id: string // `${lang}:${day}`
+  lang: string
+  day: string // YYYY-MM-DD
+  xp: number
+  exercises: number
+  correct: number
+  timeMs: number
+}
+
 export interface LearnFile {
   id: string // course fragment id (uuid) — the original imported json/zip retained
   name: string
@@ -219,6 +230,7 @@ class BreaderDB extends Dexie {
   learnProgress!: Table<LearnProgress, string>
   learnStats!: Table<LearnStats, string>
   learnFiles!: Table<LearnFile, string>
+  learnDaily!: Table<LearnDaily, string>
   audio!: Table<AudioClip, string>
 
   constructor() {
@@ -261,6 +273,10 @@ class BreaderDB extends Dexie {
     // v7: cached TTS audio
     this.version(7).stores({
       audio: 'key, createdAt',
+    })
+    // v8: per-language/day stats rollup
+    this.version(8).stores({
+      learnDaily: 'id, day, lang',
     })
   }
 }

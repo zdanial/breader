@@ -8,7 +8,7 @@ const ALL_TABLES = [
   'books', 'sentences', 'chapters', 'translations', 'settings', 'files', 'covers',
   'savedWords', 'savedQuotes', 'highlights', 'vocab',
   'learnCourses', 'learnUnits', 'learnLessons', 'learnProgress', 'learnStats', 'learnFiles',
-  'audio',
+  'learnDaily', 'audio',
 ]
 // 'light' drops the big, re-generatable data: book sentences, original files, audio.
 const LIGHT_EXCLUDE = new Set(['sentences', 'files', 'audio'])

@@ -110,7 +110,17 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
     const day = todayKey()
     if (!stats.activeDays.includes(day)) stats.activeDays.push(day)
     await db.learnStats.put(stats)
-  }, [gradedCount, lesson, lessonId])
+
+    // per-language/day rollup for over-time + by-language stats
+    const lang = course?.targetLang ?? lesson.courseId
+    const did = `${lang}:${day}`
+    const d = (await db.learnDaily.get(did)) ?? { id: did, lang, day, xp: 0, exercises: 0, correct: 0, timeMs: 0 }
+    d.xp += xp
+    d.exercises += gradedCount
+    d.correct += firstTry.current
+    d.timeMs += Date.now() - startedAt.current
+    await db.learnDaily.put(d)
+  }, [gradedCount, lesson, lessonId, course])
 
   const advance = useCallback(() => {
     const next = qpos + 1

@@ -574,6 +574,53 @@ p {
   letter-spacing: 0.08em;
   color: var(--muted);
 }
+
+/* xp-over-time sparkline */
+.spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 80px;
+}
+.spark-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+.spark-bar {
+  width: 100%;
+  background: var(--border);
+}
+.spark-bar.on {
+  background: var(--accent);
+}
+
+/* by-language stat block */
+.lang-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 6px;
+}
+.lang-stat + .lang-stat {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+}
+.lang-stat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.lang-stat-name {
+  font: 700 15px var(--font-sans);
+  color: var(--fg);
+}
+.lang-stat-xp {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--accent);
+}
 .unit {
   display: flex;
   flex-direction: column;

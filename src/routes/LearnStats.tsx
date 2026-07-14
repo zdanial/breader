@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useState } from 'react'
 import { db } from '../db/schema'
 import { computeStreak } from '../learn/progress'
+import { deriveStatus } from '../vocab/bank'
 import { Rule } from '../ui'
 
 const langName = (code: string) =>
@@ -122,6 +123,21 @@ export default function LearnStats() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [daily, progress, vocab, courseLang, sel])
 
+  // ── word bank: scheduler breakdown for the selected languages ──
+  const bank = useMemo(() => {
+    const now = Date.now()
+    let tracked = 0, known = 0, learning = 0, due = 0
+    for (const v of vocab ?? []) {
+      if (!inSel(v.lang) || !v.tracked) continue
+      tracked++
+      if (deriveStatus(v) === 'known') known++
+      else learning++
+      if ((v.dueAt ?? Infinity) <= now) due++
+    }
+    return { tracked, known, learning, due }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vocab, sel])
+
   const doneLessons = (progress ?? []).filter((p) => p.completed).length
   const totalWords = (vocab ?? []).filter((v) => inSel(v.lang)).length
   const totMinutes = Math.round(byLang.reduce((n, [, e]) => n + e.timeMs, 0) / 60000)
@@ -149,6 +165,18 @@ export default function LearnStats() {
             <Stat n={String(stats?.activeDays.length ?? 0)} label="active days" />
           </div>
         </section>
+
+        {bank.tracked > 0 && (
+          <section className="section">
+            <h2>word bank</h2>
+            <div className="stat-grid">
+              <Stat n={String(bank.tracked)} label="tracked" />
+              <Stat n={String(bank.known)} label="known" />
+              <Stat n={String(bank.learning)} label="learning" />
+              <Stat n={String(bank.due)} label="due to review" />
+            </div>
+          </section>
+        )}
 
         <section className="section">
           <h2>over 14 days</h2>

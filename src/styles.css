@@ -312,7 +312,10 @@ p {
   color: var(--fg);
   border-left: 1px solid var(--border);
 }
-/* let scrolling content clear the fixed bar */
+/* let scrolling content clear the fixed bar. Higher specificity than the base
+   .shelf rule (whose `padding` shorthand is later in source) so its 20px bottom
+   doesn't win and hide the last row behind the bar. */
+.shelf.has-langbar,
 .has-langbar {
   padding-bottom: calc(64px + env(safe-area-inset-bottom));
 }

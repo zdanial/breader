@@ -385,35 +385,34 @@ p {
   gap: 10px;
 }
 
-/* writing sample (read) */
-.read-ex {
-  gap: 14px;
-}
-.passage {
-  font-family: var(--font-reading);
-  font-size: 1.25rem;
-  line-height: 1.6;
+/* writing sample (read) — uses the shared PassageReader */
+.read-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
   color: var(--fg);
+  margin: 0;
+  padding: 0 20px 4px;
 }
-.passage-line {
-  margin: 0 0 6px;
+.passage-reader {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
-.passage-gap {
-  display: block;
-  height: 12px;
+.passage-top {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 20px;
+  min-height: 28px;
 }
-.passage .pw {
-  cursor: pointer;
+.passage-area {
+  /* the shared sentence-area reserves tray space; the passage has no tray */
+  padding-bottom: 12px !important;
 }
-.passage .pw:active {
-  background: var(--sel);
-  color: var(--sel-fg);
-}
-.passage-tr {
-  font: 400 14px/1.55 var(--font-sans);
-  color: var(--muted);
-  border-top: 1px solid var(--border);
-  padding-top: 12px;
+.passage-hint {
+  text-align: center;
+  font-size: 0.72rem;
+  margin-top: 8px;
 }
 
 /* teaching screen */

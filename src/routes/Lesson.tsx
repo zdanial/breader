@@ -4,7 +4,8 @@ import { db, type LessonItem } from '../db/schema'
 import { useSettings } from '../db/settings'
 import { GlossChip } from '../learn/GlossChip'
 import type { GlossSource } from '../learn/gloss'
-import { tokenize } from '../reader/SentenceText'
+import { segmentParagraph } from '../segment/registry'
+import { PassageReader } from '../reader/PassageReader'
 import { navigate } from '../router'
 import { SpeakerIcon } from '../tts/SpeakerButton'
 import { useSpeak } from '../tts/useSpeak'
@@ -209,12 +210,24 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
         <ProgressBar value={items.length ? done.size / items.length : 0} />
       </header>
 
+      {item?.type === 'read' ? (
+        <ReadView
+          key={itemIndex}
+          item={item}
+          dir={dir}
+          lang={course.targetLang}
+          baseLang={course.baseLang}
+          glossSrc={glossSrc}
+          onDone={() => {
+            markDone(itemIndex!)
+            advance()
+          }}
+        />
+      ) : (
+        <>
       <main className="lesson-body">
         {item?.type === 'teach' && (
           <TeachView item={item} dir={dir} onGloss={openGloss} />
-        )}
-        {item?.type === 'read' && (
-          <ReadView key={itemIndex} item={item} dir={dir} lang={course.targetLang} onGloss={openGloss} />
         )}
         {item?.type === 'choice' && (
           <ChoiceView
@@ -264,7 +277,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
       )}
 
       <footer className="lesson-foot">
-        {(item?.type === 'teach' || item?.type === 'read') && (
+        {item?.type === 'teach' && (
           <Button onClick={() => { markDone(itemIndex!); advance() }} style={{ width: '100%' }}>
             continue
           </Button>
@@ -304,6 +317,8 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
           <Button onClick={advance} style={{ width: '100%' }}>continue</Button>
         )}
       </footer>
+        </>
+      )}
 
       {gloss && (
         <GlossChip word={gloss.word} anchor={gloss.rect} src={glossSrc} onClose={() => setGloss(null)} />
@@ -316,52 +331,35 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
 
 type GlossFn = (word: string, e: React.PointerEvent | React.MouseEvent) => void
 
-// Writing sample (poem/story) with the reader UX — tap words for gloss, play audio,
-// reveal translation. Non-graded.
+// Writing sample (poem/story) read with the shared PassageReader — sentence at a
+// time, tap words for gloss, hold to peek the translation, speaker audio.
 function ReadView({
-  item, dir, lang, onGloss,
+  item, dir, lang, baseLang, glossSrc, onDone,
 }: {
   item: Extract<LessonItem, { type: 'read' }>
-  dir: 'ltr' | 'rtl'; lang: string; onGloss: GlossFn
+  dir: 'ltr' | 'rtl'; lang: string; baseLang: string; glossSrc: GlossSource; onDone: () => void
 }) {
-  const { say, hasKey } = useSpeak()
-  const [showTr, setShowTr] = useState(false)
+  // one line/stanza per newline, then sentence-split each — pairs target ↔ base
+  const seg = (text: string, l: string) =>
+    text
+      .split(/\n/)
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .flatMap((s) => segmentParagraph(s, l))
+  const sentences = seg(item.text, lang)
+  const translations = item.translation ? seg(item.translation, baseLang) : undefined
   return (
-    <div className="ex read-ex">
-      {item.title && <h2 className="teach-title">{item.title}</h2>}
-      {hasKey && (
-        <button className="listen-play" onClick={() => say(item.text)}>
-          <SpeakerIcon size={18} /> listen
-        </button>
-      )}
-      <div className="passage" dir={dir}>
-        {item.text.split(/\n/).map((line, i) =>
-          line.trim() === '' ? (
-            <span key={i} className="passage-gap" />
-          ) : (
-            <p key={i} className="passage-line" dir="auto">
-              {tokenize(line, lang).map((t, j) =>
-                t.isWord ? (
-                  <span key={j} className="pw" onClick={(e) => onGloss(t.text, e)}>
-                    {t.text}
-                  </span>
-                ) : (
-                  <span key={j}>{t.text}</span>
-                ),
-              )}
-            </p>
-          ),
-        )}
-      </div>
-      {item.translation && (
-        <>
-          <button className="btn secondary" onClick={() => setShowTr((s) => !s)}>
-            {showTr ? 'hide translation' : 'show translation'}
-          </button>
-          {showTr && <p className="passage-tr">{item.translation}</p>}
-        </>
-      )}
-    </div>
+    <>
+      {item.title && <h2 className="read-title" dir="auto">{item.title}</h2>}
+      <PassageReader
+        sentences={sentences}
+        translations={translations}
+        dir={dir}
+        lang={lang}
+        glossSrc={glossSrc}
+        onDone={onDone}
+      />
+    </>
   )
 }
 

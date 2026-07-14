@@ -5,6 +5,7 @@ import { useSettings } from '../db/settings'
 import { GlossChip } from '../learn/GlossChip'
 import type { GlossSource } from '../learn/gloss'
 import { navigate } from '../router'
+import { useSpeak } from '../tts/useSpeak'
 import { recordEncounter } from '../vocab/bank'
 import { Button, ProgressBar } from '../ui'
 
@@ -220,6 +221,9 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
         {item?.type === 'build' && (
           <BuildView item={item} dir={dir} phase={phase} built={built} setBuilt={setBuilt} onGloss={openGloss} />
         )}
+        {item?.type === 'listen' && (
+          <ListenView key={itemIndex} item={item} dir={dir} phase={phase} built={built} setBuilt={setBuilt} onGloss={openGloss} />
+        )}
         {item?.type === 'match' && (
           <MatchView
             key={itemIndex}
@@ -262,7 +266,7 @@ export default function Lesson({ lessonId }: { lessonId: string }) {
           ) : (
             <Button onClick={advance} style={{ width: '100%' }}>continue</Button>
           ))}
-        {item?.type === 'build' &&
+        {(item?.type === 'build' || item?.type === 'listen') &&
           (phase === 'answering' ? (
             <Button
               disabled={built.length === 0}
@@ -386,28 +390,26 @@ function BlankView({
   )
 }
 
-function BuildView({
-  item, dir, phase, built, setBuilt, onGloss,
+function BuildBody({
+  tiles, dir, phase, built, setBuilt, onGloss,
 }: {
-  item: Extract<LessonItem, { type: 'build' }>
-  dir: 'ltr' | 'rtl'; phase: Phase; built: number[]
+  tiles: string[]; dir: 'ltr' | 'rtl'; phase: Phase; built: number[]
   setBuilt: (f: (b: number[]) => number[]) => void; onGloss: GlossFn
 }) {
   const used = new Set(built)
   return (
-    <div className="ex">
-      <p className="ex-prompt">{item.prompt}</p>
+    <>
       <div className="build-answer" dir={dir}>
         {built.map((ti, pos) => (
           <button key={pos} className="tile" dir={dir} disabled={phase !== 'answering'}
             onClick={() => setBuilt((b) => b.filter((_, p) => p !== pos))}>
-            {item.tiles[ti]}
+            {tiles[ti]}
           </button>
         ))}
       </div>
       <span className="rule" style={{ opacity: 0.4 }} />
       <div className="build-bank" dir={dir}>
-        {item.tiles.map((t, i) =>
+        {tiles.map((t, i) =>
           used.has(i) ? (
             <span key={i} className="tile ghost">{t}</span>
           ) : (
@@ -416,6 +418,46 @@ function BuildView({
           ),
         )}
       </div>
+    </>
+  )
+}
+
+function BuildView({
+  item, dir, phase, built, setBuilt, onGloss,
+}: {
+  item: Extract<LessonItem, { type: 'build' }>
+  dir: 'ltr' | 'rtl'; phase: Phase; built: number[]
+  setBuilt: (f: (b: number[]) => number[]) => void; onGloss: GlossFn
+}) {
+  return (
+    <div className="ex">
+      <p className="ex-prompt">{item.prompt}</p>
+      <BuildBody tiles={item.tiles} dir={dir} phase={phase} built={built} setBuilt={setBuilt} onGloss={onGloss} />
+    </div>
+  )
+}
+
+function ListenView({
+  item, dir, phase, built, setBuilt, onGloss,
+}: {
+  item: Extract<LessonItem, { type: 'listen' }>
+  dir: 'ltr' | 'rtl'; phase: Phase; built: number[]
+  setBuilt: (f: (b: number[]) => number[]) => void; onGloss: GlossFn
+}) {
+  const { say, hasKey } = useSpeak()
+  // autoplay once on mount (rides the tap that entered this item — a user gesture)
+  useEffect(() => {
+    if (hasKey) say(item.text)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.text])
+  return (
+    <div className="ex">
+      <p className="ex-prompt">tap what you hear</p>
+      <button className="listen-play" onClick={() => say(item.text)} disabled={!hasKey}>
+        ♪ {hasKey ? 'play again' : 'add a key in settings for audio'}
+      </button>
+      {phase !== 'answering' && item.translation && <p className="ex-sub" dir={dir}>{item.text}</p>}
+      <BuildBody tiles={item.tiles} dir={dir} phase={phase} built={built} setBuilt={setBuilt} onGloss={onGloss} />
     </div>
   )
 }

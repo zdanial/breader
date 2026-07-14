@@ -19,7 +19,8 @@ const SCHEMA = `{
             { "type": "choice", "prompt": "...", "choices": ["...","..."], "answer": 0 },
             { "type": "build", "prompt": "...", "tiles": ["...","..."], "answer": ["...","..."] },
             { "type": "match", "pairs": [["<target>","<base>"], ["<target>","<base>"]] },
-            { "type": "blank", "prompt": "... ___ ...", "translation": "...", "choices": ["...","..."], "answer": 0 }
+            { "type": "blank", "prompt": "... ___ ...", "translation": "...", "choices": ["...","..."], "answer": 0 },
+            { "type": "listen", "text": "<target sentence to speak>", "tiles": ["...","..."], "answer": ["...","..."], "translation": "..." }
           ] } ] } ]
 }`
 
@@ -29,6 +30,7 @@ const ITEM_UX = `How each item appears to the learner (write content that fits):
 - "build": the learner taps word tiles in order to build the target sentence; "tiles" = the correct words PLUS believable extra tiles; "answer" = the correct ordered words.
 - "match": two columns the learner pairs (target ↔ base); 3–5 pairs.
 - "blank": a sentence with a gap; the learner picks the word that fills it.
+- "listen": the learner hears the target sentence "text" spoken aloud (text-to-speech) and rebuilds it from word tiles; "tiles" = the correct words PLUS distractor tiles, "answer" = the correct ordered words. Use short, clearly pronounceable target sentences.
 Any target word is tappable for a gloss, so include a "glossary" for the vocabulary used.`
 
 export function buildGeneratorPrompt(opts: {

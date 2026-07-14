@@ -344,6 +344,21 @@ p {
   border-color: var(--accent);
   color: var(--accent);
 }
+.listen-play {
+  align-self: flex-start;
+  padding: 14px 20px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-2);
+  color: var(--fg);
+  font: 700 16px var(--font-sans);
+  cursor: pointer;
+}
+.listen-play:disabled {
+  opacity: 0.5;
+  cursor: default;
+  font-weight: 400;
+  font-size: 13px;
+}
 .build-answer {
   min-height: 52px;
   display: flex;

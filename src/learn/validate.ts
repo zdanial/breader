@@ -46,6 +46,12 @@ function validateItem(it: any, where: string): string | null {
       if (!isArr(it.answer) || it.answer.length < 1 || !it.answer.every(isStr))
         return `${where}: build needs a string[] answer`
       return null
+    case 'listen':
+      if (!isStr(it.text)) return `${where}: listen needs spoken "text"`
+      if (!isArr(it.tiles) || !it.tiles.every(isStr)) return `${where}: listen needs string tiles`
+      if (!isArr(it.answer) || it.answer.length < 1 || !it.answer.every(isStr))
+        return `${where}: listen needs a string[] answer`
+      return null
     case 'match':
       if (!isArr(it.pairs) || it.pairs.length < 2) return `${where}: match needs ≥2 pairs`
       if (!it.pairs.every((p: unknown) => isArr(p) && p.length === 2 && p.every(isStr)))

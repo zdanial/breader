@@ -262,6 +262,212 @@ p {
   border-bottom-color: var(--fg);
 }
 
+/* ── lesson player ──────────────────────────────────────────────────────── */
+.lesson-top {
+  gap: 14px;
+  align-items: center;
+}
+.lesson-top .bar {
+  flex: 1;
+}
+.lesson-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px 12px;
+  display: flex;
+  flex-direction: column;
+}
+.lesson-foot {
+  padding: 12px 20px calc(16px + env(safe-area-inset-bottom));
+}
+
+.ex {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ex-prompt {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  line-height: 1.2;
+  color: var(--fg);
+}
+.ex-prompt.tgt-prompt {
+  font-size: 26px;
+}
+.ex-sub {
+  font: 400 14px var(--font-sans);
+  color: var(--muted);
+  margin-top: -8px;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.choice-tile {
+  padding: 15px 16px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--fg);
+  font: 600 17px var(--font-sans);
+  text-align: center;
+  cursor: pointer;
+}
+.choice-tile.selected {
+  border-color: var(--fg);
+}
+.choice-tile.correct {
+  border-color: var(--signal-green);
+  color: var(--signal-green);
+}
+.choice-tile.wrong {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* word tiles (build + match) */
+.tile {
+  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--card-2);
+  color: var(--fg);
+  font: 600 17px var(--font-sans);
+  cursor: pointer;
+}
+.tile.ghost {
+  opacity: 0.28;
+  pointer-events: none;
+}
+.tile.selected {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.build-answer {
+  min-height: 52px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: flex-start;
+}
+.build-bank {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.match {
+  display: flex;
+  gap: 12px;
+}
+.match-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* teaching screen */
+.teach {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.teach-title {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--fg);
+  margin: 0;
+}
+.teach-body {
+  font: 400 16px/1.6 var(--font-sans);
+  color: var(--fg-soft);
+}
+.teach-examples {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: var(--rule);
+  padding-top: 14px;
+}
+.teach-ex {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: baseline;
+}
+.teach-ex .tgt {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--fg);
+  cursor: pointer;
+}
+.teach-ex .base {
+  font: 400 14px var(--font-sans);
+  color: var(--muted);
+}
+
+/* feedback banner */
+.feedback {
+  padding: 12px 20px;
+  font: 700 15px var(--font-sans);
+  border-top: 2px solid transparent;
+}
+.feedback.correct {
+  color: var(--signal-green);
+  border-top-color: var(--signal-green);
+}
+.feedback.wrong {
+  color: var(--danger);
+  border-top-color: var(--danger);
+}
+.feedback b {
+  font-family: var(--font-serif);
+  font-weight: 400;
+}
+
+/* celebration */
+.celebrate-inner {
+  text-align: center;
+  animation: popIn 0.3s cubic-bezier(0.2, 0, 0, 1);
+}
+.celebrate-title {
+  font-family: var(--font-serif);
+  font-size: 44px;
+  color: var(--fg);
+}
+.celebrate-stats {
+  display: flex;
+  gap: 40px;
+  justify-content: center;
+}
+.celebrate-stats .cn {
+  display: block;
+  font-family: var(--font-serif);
+  font-size: 34px;
+  color: var(--accent);
+}
+.celebrate-stats .cl {
+  font: 600 11px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes shakeX {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+.shake {
+  animation: shakeX 0.35s;
+}
+
 /* ── learn path ─────────────────────────────────────────────────────────── */
 .course {
   display: flex;

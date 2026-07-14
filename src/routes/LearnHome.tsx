@@ -1,16 +1,21 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useMemo, useRef, useState } from 'react'
 import { db, type LearnCourse, type LearnLesson, type LearnUnit } from '../db/schema'
+import { useLanguages } from '../db/languages'
 import { importLearnFile } from '../learn/importCourse'
 import { deleteCourse, resetCourseProgress } from '../learn/ops'
 import { computeStreak } from '../learn/progress'
 import { navigate } from '../router'
 import { trackedWords } from '../vocab/bank'
-import { Button, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
+import { Button, LanguageBar, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
 
 const langName = (code: string) =>
   new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
 const pad2 = (n: number) => String(n).padStart(2, '0')
+const prim = (l: string) => (l ?? '').toLowerCase().split('-')[0]
+
+// languages the user can add a course for
+const ADDABLE: string[] = ['fa', 'de', 'fr', 'es', 'it', 'pt', 'he', 'ar', 'ja', 'zh', 'ru', 'ko']
 
 export default function LearnHome() {
   const courses = useLiveQuery(() => db.learnCourses.orderBy('createdAt').toArray(), [])
@@ -18,23 +23,21 @@ export default function LearnHome() {
   const lessons = useLiveQuery(() => db.learnLessons.toArray(), [])
   const progress = useLiveQuery(() => db.learnProgress.toArray(), [])
   const stats = useLiveQuery(() => db.learnStats.get('singleton'), [])
-  // per-language word-bank review counts (tracked + due now)
-  const reviewInfo = useLiveQuery(async () => {
-    const langs = [...new Set((await db.learnCourses.toArray()).map((c) => c.targetLang))]
+  const { langs, active, setActive, addLanguage } = useLanguages()
+
+  // word-bank review counts for the active language (tracked + due now)
+  const review = useLiveQuery(async () => {
+    if (!active) return { tracked: 0, due: 0 }
+    const withGloss = (await trackedWords(active)).filter((v) => v.gloss)
     const now = Date.now()
-    const out: Record<string, { tracked: number; due: number }> = {}
-    for (const l of langs) {
-      const withGloss = (await trackedWords(l)).filter((v) => v.gloss)
-      out[l] = {
-        tracked: withGloss.length,
-        due: withGloss.filter((v) => (v.dueAt ?? Infinity) <= now).length,
-      }
-    }
-    return out
-  }, [])
+    return { tracked: withGloss.length, due: withGloss.filter((v) => (v.dueAt ?? Infinity) <= now).length }
+  }, [active])
+
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [addOpen, setAddOpen] = useState(false)
+  const [pickLang, setPickLang] = useState(false)
   const [menuCourse, setMenuCourse] = useState<LearnCourse | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
@@ -44,15 +47,10 @@ export default function LearnHome() {
   )
   const streak = computeStreak(stats?.activeDays ?? [])
 
-  const byLang = useMemo(() => {
-    const m = new Map<string, LearnCourse[]>()
-    for (const c of courses ?? []) {
-      const list = m.get(c.targetLang) ?? []
-      list.push(c)
-      m.set(c.targetLang, list)
-    }
-    return [...m.entries()].sort((a, b) => langName(a[0]).localeCompare(langName(b[0])))
-  }, [courses])
+  const activeCourses = useMemo(
+    () => (courses ?? []).filter((c) => prim(c.targetLang) === active),
+    [courses, active],
+  )
 
   const unitsOf = (courseId: string): LearnUnit[] =>
     (units ?? []).filter((u) => u.courseId === courseId).sort((a, b) => a.index - b.index)
@@ -71,6 +69,8 @@ export default function LearnHome() {
     }
   }
 
+  const addable = ADDABLE.filter((c) => !langs.includes(c))
+
   return (
     <div className="page">
       <header className="topbar">
@@ -87,134 +87,135 @@ export default function LearnHome() {
       </header>
       <SectionTabs active="learn" />
 
-      <main className="shelf">
-        {courses?.length === 0 && (
-          <p className="empty">
-            no courses yet — <a href="#/learn-new">make one with your AI</a>, or import a unit file.
-          </p>
-        )}
+      <main className="shelf has-langbar">
         {error && (
           <p className="error-text" style={{ textAlign: 'center' }}>
             {error}
           </p>
         )}
+        {busy && <p className="note" style={{ textAlign: 'center' }}>importing…</p>}
 
-        {byLang.map(([lang, langCourses]) => (
-          <section key={lang} className="lang-section">
-            <div className="lang-header" style={{ cursor: 'default' }}>
-              <span className="label">{langName(lang).toLowerCase()}</span>
-              <span className="lang-count">{pad2(langCourses.length)}</span>
-            </div>
-            <Rule />
-
-            {/* word-bank review — per language, pulls due/weak tracked words */}
-            {reviewInfo?.[lang]?.tracked ? (
+        {langs.length === 0 ? (
+          <p className="empty">no languages yet — tap ＋ to add one and generate your first course.</p>
+        ) : (
+          <>
+            {/* word-bank review for the active language */}
+            {review && review.tracked > 0 && active && (
               <button
                 className="continue-card review-card"
                 dir="ltr"
-                onClick={() => navigate(`/review/${lang}`)}
+                onClick={() => navigate(`/review/${active}`)}
               >
-                <span className="continue-eyebrow">word bank · {langName(lang).toLowerCase()}</span>
+                <span className="continue-eyebrow">word bank · {langName(active).toLowerCase()}</span>
                 <span className="continue-title">review</span>
                 <span className="continue-foot">
-                  <span className="muted">{reviewInfo[lang].tracked} words tracked</span>
+                  <span className="muted">{review.tracked} words tracked</span>
                   <span className="continue-resume">
-                    {reviewInfo[lang].due > 0 ? `${reviewInfo[lang].due} due →` : 'practice →'}
+                    {review.due > 0 ? `${review.due} due →` : 'practice →'}
                   </span>
                 </span>
-                <span className="continue-ghost">{pad2(Math.min(99, reviewInfo[lang].due))}</span>
+                <span className="continue-ghost">{pad2(Math.min(99, review.due))}</span>
               </button>
-            ) : null}
+            )}
 
-            {langCourses.map((course) => {
-              const us = unitsOf(course.id)
-              const ordered = us.flatMap((u) => lessonsOf(u.id).map((l) => ({ l, u })))
-              const currentPos = ordered.findIndex((x) => !done.has(x.l.id))
-              const current = currentPos >= 0 ? ordered[currentPos] : null
+            {activeCourses.length === 0 ? (
+              <p className="empty">
+                no courses in {active ? langName(active) : 'this language'} yet — tap ＋ to import or
+                generate content.
+              </p>
+            ) : (
+              activeCourses.map((course) => {
+                const us = unitsOf(course.id)
+                const ordered = us.flatMap((u) => lessonsOf(u.id).map((l) => ({ l, u })))
+                const currentPos = ordered.findIndex((x) => !done.has(x.l.id))
+                const current = currentPos >= 0 ? ordered[currentPos] : null
 
-              return (
-                <div key={course.id} className="course" dir={course.dir}>
-                  <div className="course-title-row" dir="ltr">
-                    <span className="course-title">{course.title}</span>
-                    <button
-                      className="icon-btn"
-                      aria-label={`Options for ${course.title}`}
-                      onClick={() => {
-                        setMenuCourse(course)
-                        setConfirmDelete(false)
-                      }}
-                    >
-                      ···
-                    </button>
+                return (
+                  <div key={course.id} className="course" dir={course.dir}>
+                    <div className="course-title-row" dir="ltr">
+                      <span className="course-title">{course.title}</span>
+                      <button
+                        className="icon-btn"
+                        aria-label={`Options for ${course.title}`}
+                        onClick={() => {
+                          setMenuCourse(course)
+                          setConfirmDelete(false)
+                        }}
+                      >
+                        ···
+                      </button>
+                    </div>
+
+                    {/* continue card — the current lesson */}
+                    {current && (
+                      <button
+                        className="continue-card"
+                        dir="ltr"
+                        onClick={() => navigate(`/lesson/${current.l.id}`)}
+                      >
+                        <span className="continue-eyebrow">continue · unit {pad2(current.u.index)}</span>
+                        <span className="continue-title" dir="auto">
+                          {current.l.title}
+                        </span>
+                        <span className="continue-foot">
+                          <span className="muted">{current.u.title}</span>
+                          <span className="continue-resume">resume →</span>
+                        </span>
+                        <span className="continue-ghost">{pad2(current.u.index)}</span>
+                      </button>
+                    )}
+
+                    {us.map((unit) => {
+                      const uls = lessonsOf(unit.id)
+                      const allDone = uls.length > 0 && uls.every((l) => done.has(l.id))
+                      const hasCurrent = current?.u.id === unit.id
+                      const someDone = uls.some((l) => done.has(l.id))
+                      const status = allDone ? 'done' : hasCurrent || someDone ? 'progress' : null
+                      return (
+                        <div key={unit.id} className="unit">
+                          <div className="unit-head" dir="ltr">
+                            <span className="unit-numeral">{pad2(unit.index)}</span>
+                            <span className="unit-title">{unit.title}</span>
+                            {status && (
+                              <span className={`unit-status ${status}`}>
+                                {status === 'done' ? 'done' : 'in progress'}
+                              </span>
+                            )}
+                          </div>
+                          <div className="lesson-rows">
+                            {uls.map((lesson) => {
+                              const isDone = done.has(lesson.id)
+                              const isCurrent = current?.l.id === lesson.id
+                              const state = isDone ? 'done' : isCurrent ? 'current' : 'locked'
+                              return (
+                                <button
+                                  key={lesson.id}
+                                  className={`lesson-row ${state}`}
+                                  dir="ltr"
+                                  disabled={state === 'locked'}
+                                  onClick={() => navigate(`/lesson/${lesson.id}`)}
+                                >
+                                  <span className="signal" />
+                                  <span className="lesson-name" dir="auto">
+                                    {lesson.title}
+                                  </span>
+                                  {isCurrent && <span className="row-action">start →</span>}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    })}
                   </div>
-
-                  {/* continue card — the current lesson */}
-                  {current && (
-                    <button
-                      className="continue-card"
-                      dir="ltr"
-                      onClick={() => navigate(`/lesson/${current.l.id}`)}
-                    >
-                      <span className="continue-eyebrow">continue · unit {pad2(current.u.index)}</span>
-                      <span className="continue-title" dir="auto">
-                        {current.l.title}
-                      </span>
-                      <span className="continue-foot">
-                        <span className="muted">{current.u.title}</span>
-                        <span className="continue-resume">resume →</span>
-                      </span>
-                      <span className="continue-ghost">{pad2(current.u.index)}</span>
-                    </button>
-                  )}
-
-                  {us.map((unit) => {
-                    const uls = lessonsOf(unit.id)
-                    const allDone = uls.length > 0 && uls.every((l) => done.has(l.id))
-                    const hasCurrent = current?.u.id === unit.id
-                    const someDone = uls.some((l) => done.has(l.id))
-                    const status = allDone ? 'done' : hasCurrent || someDone ? 'progress' : null
-                    return (
-                      <div key={unit.id} className="unit">
-                        <div className="unit-head" dir="ltr">
-                          <span className="unit-numeral">{pad2(unit.index)}</span>
-                          <span className="unit-title">{unit.title}</span>
-                          {status && (
-                            <span className={`unit-status ${status}`}>
-                              {status === 'done' ? 'done' : 'in progress'}
-                            </span>
-                          )}
-                        </div>
-                        <div className="lesson-rows">
-                          {uls.map((lesson) => {
-                            const isDone = done.has(lesson.id)
-                            const isCurrent = current?.l.id === lesson.id
-                            const state = isDone ? 'done' : isCurrent ? 'current' : 'locked'
-                            return (
-                              <button
-                                key={lesson.id}
-                                className={`lesson-row ${state}`}
-                                dir="ltr"
-                                disabled={state === 'locked'}
-                                onClick={() => navigate(`/lesson/${lesson.id}`)}
-                              >
-                                <span className="signal" />
-                                <span className="lesson-name" dir="auto">
-                                  {lesson.title}
-                                </span>
-                                {isCurrent && <span className="row-action">start →</span>}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )
-            })}
-          </section>
-        ))}
+                )
+              })
+            )}
+          </>
+        )}
       </main>
+
+      <LanguageBar langs={langs} active={active} onSelect={setActive} onAdd={() => setAddOpen(true)} />
 
       <input
         ref={fileRef}
@@ -227,14 +228,68 @@ export default function LearnHome() {
           e.target.value = ''
         }}
       />
-      <div style={{ padding: '0 20px calc(20px + env(safe-area-inset-bottom))', display: 'flex', gap: 10 }}>
-        <Button variant="secondary" onClick={() => navigate('/learn-new')} style={{ flex: 1 }}>
-          new course
-        </Button>
-        <Button onClick={() => fileRef.current?.click()} disabled={busy} style={{ flex: 1 }}>
-          {busy ? 'importing…' : '+ import unit'}
-        </Button>
-      </div>
+
+      {/* the mode-aware add sheet for learn: import content · generate · add language */}
+      {addOpen && (
+        <Sheet onClose={() => setAddOpen(false)}>
+          <h2 className="sheet-title">add {active ? `to ${langName(active).toLowerCase()}` : 'content'}</h2>
+          <Rule />
+          <Button
+            onClick={() => {
+              setAddOpen(false)
+              navigate('/learn-new')
+            }}
+          >
+            ✳ generate instructions
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setAddOpen(false)
+              fileRef.current?.click()
+            }}
+          >
+            ↥ import content
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setAddOpen(false)
+              setPickLang(true)
+            }}
+          >
+            ＋ add language
+          </Button>
+          <Button variant="secondary" onClick={() => setAddOpen(false)}>
+            cancel
+          </Button>
+        </Sheet>
+      )}
+
+      {/* language picker for "add language" */}
+      {pickLang && (
+        <Sheet onClose={() => setPickLang(false)}>
+          <h2 className="sheet-title">add a language</h2>
+          <Rule />
+          <div className="lang-pick">
+            {addable.map((code) => (
+              <button
+                key={code}
+                className="lang-pick-item"
+                onClick={() => {
+                  addLanguage(code)
+                  setPickLang(false)
+                }}
+              >
+                {langName(code).toLowerCase()}
+              </button>
+            ))}
+          </div>
+          <Button variant="secondary" onClick={() => setPickLang(false)}>
+            cancel
+          </Button>
+        </Sheet>
+      )}
 
       {menuCourse && (
         <Sheet onClose={() => setMenuCourse(null)}>

@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { db } from '../db/schema'
+import { useLanguages } from '../db/languages'
 import { buildGeneratorPrompt, buildKnownWordsBlock, languageContextSummary } from '../learn/generatorPrompt'
 import { knownWords } from '../vocab/bank'
 import { Button, Rule } from '../ui'
@@ -53,8 +54,14 @@ export default function LearnNew({ courseId }: { courseId?: string }) {
   const allUnits = useLiveQuery(() => db.learnUnits.toArray(), [])
   const allLessons = useLiveQuery(() => db.learnLessons.toArray(), [])
 
+  const { active } = useLanguages()
   const [newTarget, setNewTarget] = useState('fa')
+  const [touchedTarget, setTouchedTarget] = useState(false)
   const [newBase, setNewBase] = useState('en')
+  // default the target to the active language (until the user picks another)
+  useEffect(() => {
+    if (active && !touchedTarget && !courseId) setNewTarget(active)
+  }, [active, touchedTarget, courseId])
 
   // the language we're authoring for: the opened course's, or the selected one
   const targetLang = openedCourse?.targetLang ?? newTarget
@@ -109,7 +116,7 @@ export default function LearnNew({ courseId }: { courseId?: string }) {
             <>
               <div className="field">
                 <label>language to learn</label>
-                <select value={newTarget} onChange={(e) => setNewTarget(e.target.value)}>
+                <select value={newTarget} onChange={(e) => { setTouchedTarget(true); setNewTarget(e.target.value) }}>
                   {TARGETS.map(([c, n]) => (
                     <option key={c} value={c}>
                       {n}

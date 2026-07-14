@@ -311,6 +311,20 @@ p {
 .has-langbar {
   padding-bottom: calc(64px + env(safe-area-inset-bottom));
 }
+.lang-pick {
+  display: flex;
+  flex-direction: column;
+  margin: 4px 0 12px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+.lang-pick-item {
+  text-align: left;
+  padding: 14px 2px;
+  font: 600 16px var(--font-sans);
+  color: var(--fg);
+  border-bottom: 1px solid var(--border);
+}
 
 /* ── lesson player ──────────────────────────────────────────────────────── */
 .lesson-top {

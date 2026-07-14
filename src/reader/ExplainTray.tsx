@@ -13,12 +13,14 @@ export function ExplainTray({
   term,
   lookup,
   isHighlighted,
+  isPhrase,
   onSaveWord,
   onToggleHighlight,
 }: {
   term: string
   lookup: Lookup
   isHighlighted: boolean
+  isPhrase: boolean // multi-word selection → quote bank; single word → word bank
   onSaveWord: () => Promise<void>
   onToggleHighlight: () => Promise<void>
 }) {
@@ -87,7 +89,7 @@ export function ExplainTray({
             })
           }
         >
-          {saved ? 'saved ✓' : '★ save word'}
+          {saved ? 'saved ✓' : isPhrase ? '★ quote bank' : '★ word bank'}
         </Button>
         <Button variant="secondary" onClick={() => void onToggleHighlight()}>
           {isHighlighted ? 'remove highlight' : '✎ highlight'}

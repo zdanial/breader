@@ -468,6 +468,7 @@ export default function Reader({ bookId }: { bookId: string }) {
               bookId: book.id,
             }}
             isHighlighted={!!exactHighlight}
+            isPhrase={selection.start !== selection.end}
             onSaveWord={handleSaveWord}
             onToggleHighlight={handleToggleHighlight}
           />

@@ -68,7 +68,7 @@ export default function Saved() {
         {tab === 'words' && (
           <>
             {words?.length === 0 && (
-              <p className="empty">No saved words yet — select a word while reading and tap ⭐.</p>
+              <p className="empty">No words yet — tap ★ word bank on a word while reading.</p>
             )}
             {words?.map((w) => (
               <div key={w.id} className="bank-item">

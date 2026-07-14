@@ -373,3 +373,36 @@ vertical-slice discipline — each slice is independently shippable and verified
 **Sequence:** 1 → 2 → 3. Phase 2's segmenter registry is the plug point Phase 3 extends;
 Phase 2 also closes the alignment bug. Locked build choices: measure-and-fit autosize ·
 batch-with-validation translation · new-imports-only re-segmentation · bundled RTL fonts.
+
+---
+
+## 9. Data portability & backup (app-wide)
+
+**The risk:** all data is on-device IndexedDB with no cloud. On iOS, deleting the
+home-screen PWA **deletes its data**; storage can also be evicted under pressure/disuse
+(`navigator.storage.persist()` reduces but doesn't prevent user-initiated deletion). No
+cross-device sync. So a manual backup is essential.
+
+**The feature (Settings → Back up / Restore):**
+- **Export** — serialize every Dexie table (books, sentences, chapters, translations,
+  covers, saved words/quotes, highlights, learn courses/units/lessons/progress/stats,
+  settings **minus the OpenAI key**) into one downloadable `.breader-backup.json`. Blobs
+  (original book files, covers) are base64-encoded.
+- Two scopes: **Full** (includes original book files — large) or **Light** (progress +
+  saved bank + learn + library metadata, no book files — small, restores everything except
+  the raw books, which can be re-imported).
+- **Import** — read a backup file, validate its version, and restore/merge into IndexedDB
+  (with a confirm before overwriting existing data).
+- Round-trips are the acceptance test: export on one browser profile, import on a fresh
+  one, everything reappears.
+
+## 10. Persian (`fa`) reader support (cross-cutting with LEARN.md)
+
+Adding Persian as a reading + learning language:
+- **Direction:** `fa` is already in the RTL set (`directionFor`). ✓
+- **Font:** bundle a Persian-covering face (Vazirmatn or Noto Naskh Arabic) as woff2 and
+  route `fa` → it in `readingFontStack` (Amiri's Persian coverage is imperfect).
+- **Detection:** distinguish `fa` from `ar` by Persian-specific letters (پ چ ژ گ ک ی) in
+  `detect.ts`, since both share the Arabic Unicode block.
+- **Segmentation:** the default segmenter + fragment-merge already handles Persian
+  punctuation; no `fa`-specific segmenter needed initially.

@@ -1,20 +1,19 @@
-# breader — Learn Section Design Spec
+# Learn Section — Design Spec
 
-A second section of the breader PWA: **Duolingo-style language lessons**, generated
-by *your own* AI from source content and imported as files. Everything stays
-backendless and on-device, reusing breader's router, Dexie storage, design system,
-and file-import pattern.
+A second section of the app: **Duolingo-style language lessons**, authored by *your own*
+AI from source content and imported as files. Backendless and on-device, reusing the
+router, Dexie storage, design system, reader gloss components, and file-import pattern.
 
 Status: **design agreed, pre-implementation.** Organized as **vertical slices** — each
 independently runnable and demoable end to end.
 
-The content pipeline (the whole point):
-
-```
-source content  ──►  paste into your AI (ChatGPT/Claude) with the generator prompt
-                     ──►  AI returns a unit as JSON  ──►  import the file into breader
-                     ──►  do the lessons (fully offline)
-```
+> The content pipeline (the whole point):
+> ```
+> source content  ─►  paste into your AI with the generator prompt (copied from the app
+>                     for the course's languages, pre-filled with what the course already has)
+>                 ─►  AI asks you clarifying questions, then returns unit(s) as JSON
+>                 ─►  import the file  ─►  do the lessons (offline)
+> ```
 
 ---
 
@@ -22,45 +21,42 @@ source content  ──►  paste into your AI (ChatGPT/Claude) with the generato
 
 | Area | Decision |
 |---|---|
-| **Placement** | New **Learn** section beside **Read**, reached via a **top square `Read \| Learn` switcher** on a shared home. Settings/Saved remain icons. |
-| **Backend** | **None.** Lessons are authored by the user's own AI and imported as files. Core Learn needs **no OpenAI key — fully offline** (the file carries both languages, distractors, and answers). |
-| **Exercise types (MVP)** | Four auto-graded, offline, text-only: **multiple-choice**, **tap-to-build word bank**, **match pairs**, **fill-in-the-blank**. |
+| **Placement** | New **Learn** section beside **Read**, via a **top square `Read \| Learn` switcher** on a shared home. Settings/Saved remain icons. |
+| **Backend** | **None.** Lessons authored by the user's AI, imported as files. Core Learn needs **no OpenAI key — fully offline**. |
+| **First language** | **Farsi / Persian (`fa`)** — RTL, Perso-Arabic script. Reuses the reader's RTL support; needs a Persian-covering reading face (§2). |
+| **Base language** | **Per-course, configurable** (`baseLang`). Start with English, but nothing hardcodes it — the app must support **learning L2 through another L2** later (e.g. base `de`, target `fr`). |
+| **Exercise/screen types (MVP)** | **Teaching screens** (`teach`, no input — presents/explains) **+** four auto-graded types: **multiple-choice**, **tap-to-build word bank**, **match pairs**, **fill-in-the-blank**. |
+| **Gloss** | **In from the start.** Tap a target word in any lesson → gloss, **reusing the reader's word-tokenization + popover components**. Source: the unit's `glossary` (offline) first, LLM fallback if a key is set. |
 | **Hierarchy** | **Course → Unit → Lesson → Exercise.** Units are the "levels." |
-| **Import granularity** | **One file = one unit**, declaring its course. Units with the same `course.id` **merge** → build a course up unit-by-unit (sidesteps AI output limits). |
-| **Game layer** | **Light** — no hearts/streak economy. **Rich animations** (per-answer feedback, progress fill, lesson-complete celebration) + **full stats**. |
-| **Lesson flow** | **Instant check**; a wrong answer shows the correct one and is **re-queued** later in the lesson until everything is answered correctly. |
-| **Progression** | Lessons unlock in order within a unit; a unit unlocks when the prior unit is complete. (Sequential, easily relaxed.) |
+| **Import granularity** | A file is a **course fragment**: course meta + **one or more units**. Merges into the course at **course / unit / lesson** granularity — so you can generate 2 units today, 2 more tomorrow, **and add lessons to existing units**. |
+| **Game layer** | **Light** — no hearts/streak economy. **Rich animations** + **full stats**. |
+| **Lesson flow** | **Instant check**; wrong answers show the correct one and **re-queue** until all correct. |
+| **Progression** | Lessons unlock in order within a unit; a unit unlocks when the prior is complete. (Sequential, easily relaxed.) |
 | **Stats tracked** | Progress (lessons/units done), accuracy (correct % + most-missed), XP, active days, time, volume. |
-| **Grading** | Deterministic client-side for all four types (no fuzzy/LLM grading in MVP). |
-| **Languages** | Each course declares `targetLang` + `baseLang` (default base English). **RTL-aware** — target text uses `dir`/script fonts from the reader's existing config. |
+| **Grading** | Deterministic client-side for all graded types (no fuzzy/LLM grading in MVP). |
 
 ### Explicitly deferred → fast-follows (§6)
 Typed-translation exercise (fuzzy/LLM grading) · listening via device TTS · speaking via
-mic/speech-recognition · hearts/streaks/crowns · tap-a-word-for-gloss inside a lesson ·
-pronunciation audio (TTS) · "most-missed items" analytics refinement.
+mic/speech-recognition · hearts/streaks/crowns · "most-missed items" targeted practice.
 
 ---
 
 ## 2. Architecture & reuse
 
-Learn adds no new infrastructure. It reuses:
-- **Router** (`src/router.ts`) — new routes `learn`, `lesson`, `learn-stats`; the top
-  section switcher lives in the shared home shell.
-- **Dexie** (`src/db/schema.ts`) — new `learn*` tables (below), same DB.
-- **Design system** — `Button`, `Rule`, `ProgressBar`, `Sheet`, cover-style cards, the
-  3px-rule / serif-numeral / square vocabulary. Lesson feedback adds a small animation
-  layer (CSS keyframes, in-language-system easing).
-- **Import pattern** — a new **learn-file parser** mirroring the book parser registry:
-  parse JSON → validate against the schema → persist. Malformed files are rejected with
-  a clear, specific error (AI output isn't always clean).
-- **RTL** — `directionFor(lang)` + `readingFontStack(lang, …)` already exist; target
-  text in exercises renders with them.
+No new infrastructure. Reuses:
+- **Router** — new routes `learn`, `lesson`, `learn-stats`; the `Read | Learn` switcher on the shared home shell.
+- **Dexie** — new `learn*` tables (§4), same DB.
+- **Design system** — `Button`, `Rule`, `ProgressBar`, `Sheet`, cover/card styling, square + 3px-rule + serif-numeral vocabulary. A small animation layer (CSS keyframes) for feedback + celebration.
+- **Reader gloss** — `SentenceText` tokenization + `SelectionPopover` render target words tappable inside exercises; `directionFor` + `readingFontStack` give RTL + script fonts.
+- **Import pattern** — a learn-file parser mirroring the book parser registry: parse JSON → **validate** → merge-persist; malformed files rejected with a specific error.
 
-New domain code lives under `src/learn/`.
+**Persian font:** DM Serif Display and the current RTL faces (Frank Ruhl = Hebrew, Amiri = Arabic) — Amiri covers the Perso-Arabic script but not ideally. Add a Persian-first face (e.g. **Vazirmatn** for a clean modern look, or **Noto Naskh Arabic** for traditional) to the bundled woff2 set and route `fa` to it in `readingFontStack`. Also: language detection must distinguish `fa` from `ar` (Persian-specific letters پ چ ژ گ ک ی) — but Learn declares the language in the file, so detection matters only for the reader.
+
+New domain code: `src/learn/`.
 
 ---
 
-## 3. Import file schema (one unit)
+## 3. Import file schema (a course fragment)
 
 A `.json` file. `breaderLearn` is the schema version.
 
@@ -68,208 +64,173 @@ A `.json` file. `breaderLearn` is the schema version.
 {
   "breaderLearn": 1,
   "course": {
-    "id": "de-travel",          // stable; units sharing this id merge into one course
-    "title": "German — Travel",
-    "targetLang": "de",         // BCP-47
-    "baseLang": "en"
+    "id": "fa-foundations",     // stable; fragments sharing this id merge into one course
+    "title": "Persian — Foundations",
+    "targetLang": "fa",         // BCP-47
+    "baseLang": "en"            // configurable per course
   },
-  "unit": {
-    "id": "de-travel-u1",       // stable; re-import replaces this unit's content
-    "index": 1,                 // order within the course
-    "title": "At the Airport",
-    "lessons": [
-      {
-        "id": "de-travel-u1-l1",
-        "title": "Check-in",
-        "exercises": [ /* see §3.1 */ ]
-      }
-    ]
-  }
+  "units": [                    // ONE OR MORE units per file
+    {
+      "id": "fa-foundations-u1",
+      "index": 1,               // order within the course
+      "title": "Alphabet & Sounds",
+      "glossary": [             // optional: offline gloss source for words used in this unit
+        { "word": "سلام", "gloss": "hello", "note": "informal greeting" }
+      ],
+      "lessons": [
+        { "id": "fa-foundations-u1-l1", "index": 1, "title": "First letters",
+          "exercises": [ /* §3.1 */ ] }
+      ]
+    }
+  ]
 }
 ```
 
-### 3.1 Exercise types (discriminated by `type`)
+**Merge semantics on import:** upsert the course by `course.id`; for each unit, upsert by
+`unit.id` (updates title/index/glossary); for each lesson, **upsert by `lesson.id`** —
+so new lessons append to an existing unit and an edited lesson replaces itself. Merge only
+adds/updates (never deletes). The original file is retained for reprocessing.
 
-Common optional fields on every exercise: `note` (a teaching tip shown after answering),
-`translation` (base-language gloss of the target sentence, for context).
+### 3.1 Screen & exercise types (discriminated by `type`)
+
+Common optional fields: `note` (teaching tip shown after answering), `translation`
+(base-language gloss of a target sentence, for context).
 
 ```jsonc
-// 1. multiple choice — pick the correct option
+// 0. teaching screen — NO input; presents/explains, then Continue
+{ "type": "teach",
+  "title": "Persian has no grammatical gender",
+  "body": "Nouns aren't masculine or feminine. Verbs don't change for gender either.",
+  "examples": [["او رفت", "he went / she went"]] }   // optional target/base pairs
+
+// 1. multiple choice
 { "type": "choice",
-  "prompt": "How do you say “the passport”?",
-  "choices": ["der Reisepass", "der Koffer", "das Ticket", "der Flughafen"],
-  "answer": 0 }                                   // index into choices
+  "prompt": "How do you say “hello”?",
+  "choices": ["سلام", "خداحافظ", "بله", "نه"],
+  "answer": 0 }
 
-// 2. tap-to-build word bank — tap tiles to build the sentence
+// 2. tap-to-build word bank
 { "type": "build",
-  "prompt": "Translate: I have a ticket.",
-  "tiles": ["Ich", "habe", "ein", "Ticket", "du", "Koffer"],   // incl. distractor tiles
-  "answer": ["Ich", "habe", "ein", "Ticket"],     // correct ordered sequence
-  "accept": [["Ich", "habe", "ein", "Ticket"]] }  // optional: extra valid orders
+  "prompt": "Translate: I am a student.",
+  "tiles": ["من", "دانشجو", "هستم", "او", "معلم"],
+  "answer": ["من", "دانشجو", "هستم"],
+  "accept": [["من", "دانشجو", "هستم"]] }             // optional alt orders
 
-// 3. match pairs — tap a target tile then its base translation
+// 3. match pairs
 { "type": "match",
-  "pairs": [["der Hund", "the dog"], ["die Katze", "the cat"], ["das Haus", "the house"]] }
+  "pairs": [["سلام", "hello"], ["ممنون", "thank you"], ["بله", "yes"]] }
 
-// 4. fill in the blank — choose the word that fills the gap
+// 4. fill in the blank
 { "type": "blank",
-  "prompt": "Ich ___ nach Berlin.",
-  "translation": "I am going to Berlin.",
-  "choices": ["fahre", "fährt", "fahren"],
+  "prompt": "من ___ هستم.",
+  "translation": "I am a student.",
+  "choices": ["دانشجو", "معلم", "دکتر"],
   "answer": 0 }
 ```
 
 ### 3.2 Grading (deterministic, client-side)
 - **choice / blank:** `selectedIndex === answer`.
-- **build:** the built token sequence equals `answer`, or is a member of `accept`.
-- **match:** every pair correctly matched; wrong taps count as mistakes.
-- A wrong answer is **re-queued** to the end of the lesson; the lesson completes when the
-  queue is empty (everything answered correctly at least once).
+- **build:** built sequence equals `answer`, or ∈ `accept`.
+- **match:** every pair matched; wrong taps counted as mistakes.
+- **teach:** no grading — Continue advances.
+- Wrong answers **re-queue** to the end; the lesson completes when the queue is empty.
 
 ---
 
 ## 4. On-device model (IndexedDB via Dexie)
 
 ```ts
-interface LearnCourse {
-  id: string            // from file course.id
-  title: string
-  targetLang: string
-  baseLang: string
-  dir: 'ltr' | 'rtl'
-  createdAt: number
-}
-
-interface LearnUnit {
-  id: string            // from file unit.id
-  courseId: string
-  index: number
-  title: string
-}
-
-interface LearnLesson {
-  id: string
-  unitId: string
-  courseId: string
-  index: number
-  title: string
-  exercises: Exercise[] // nested — a lesson is the play unit
-}
-
-interface LearnProgress {           // one row per lesson attempted
-  lessonId: string
-  courseId: string
-  unitId: string
-  completed: boolean
-  bestAccuracy: number              // 0–1
-  attempts: number
-  lastAt: number
-}
-
-interface LearnStats {              // singleton aggregate
-  id: 'singleton'
-  xp: number
-  totalExercises: number
-  totalCorrect: number
-  totalTimeMs: number
-  activeDays: string[]              // 'YYYY-MM-DD'
-}
-// (most-missed analytics: optional LearnMiss tally — fast-follow)
+interface LearnCourse { id; title; targetLang; baseLang; dir: 'ltr'|'rtl'; createdAt }
+interface LearnUnit   { id; courseId; index; title; glossary?: {word;gloss;note?}[] }
+interface LearnLesson { id; unitId; courseId; index; title; items: LessonItem[] } // teach+exercises
+interface LearnProgress { lessonId; courseId; unitId; completed; bestAccuracy; attempts; lastAt }
+interface LearnStats  { id:'singleton'; xp; totalExercises; totalCorrect; totalTimeMs; activeDays: string[] }
 ```
-The **original unit file** is retained (like book blobs) so a unit can be re-processed by
-a future schema version.
+`items` holds the ordered `teach`/`choice`/`build`/`match`/`blank` objects. Glossary lives
+on the unit for offline gloss lookup.
 
 ---
 
 ## 5. Vertical slices
 
-Each slice is independently runnable and browser-verified (both themes) before moving on.
+Each slice is browser-verified (both themes, LTR + the Persian RTL case) before moving on.
 
 ### L0 — App shell: two sections
-**Goal:** Read and Learn coexist.
-- Top `Read | Learn` segmented switcher on the shared home; Learn home is an empty state.
-- Router routes for `learn`; Dexie `learn*` tables created (empty).
-- Learn home: "no courses yet — import a unit to start."
+Top `Read | Learn` switcher on the shared home; Learn empty state; `learn` route; `learn*`
+Dexie tables. Reader unchanged.
+**Done when:** flip between Read and Learn; Learn shows its empty state in both themes.
 
-**Done when:** you can flip between Read and Learn; the reader is unchanged; Learn shows its empty state in both themes.
+### L1 — Import a course fragment + the path
+Learn-file parser: parse → validate (clear errors) → **merge-persist** (course/unit/lesson
+upsert). Learn home renders the **course → unit → lesson path** (units as levels, lesson
+bubbles, sequential-unlock lock state), reusing card/rule/numeral styling. Persian renders
+RTL in its script font.
+**Done when:** import a generated fragment and see the path; a second fragment for the same
+course appends units *and* adds lessons to an existing unit; a malformed file is rejected clearly.
 
-### L1 — Import a unit
-**Goal:** get real content in and see the path.
-- Learn-file parser: parse JSON → **validate** against the schema (clear errors on bad
-  files) → persist course/unit/lessons (merge by `course.id`, replace by `unit.id`).
-- Learn home renders the **course → unit → lesson path** (units as levels, lesson
-  bubbles), reusing card/rule/numeral styling. Lock state shown (sequential unlock).
-
-**Done when:** import a generated unit file and see its course, units, and lessons laid out; a second unit for the same course appends; a malformed file is rejected with a useful message.
-
-### L2 — Lesson player
-**Goal:** the core Duolingo loop.
-- The four exercise UIs (choice, build, match, blank), square/on-brand.
-- Instant check + re-queue-wrong; per-lesson progress bar.
-- Feedback animations: correct (green + check), wrong (shake + correct answer), and a
-  **lesson-complete celebration**. Tile/press micro-interactions.
-
-**Done when:** play a full lesson end to end — mistakes re-queue, the bar advances, and finishing shows the celebration. Works offline with no API key.
+### L2 — Lesson player (with gloss)
+The teaching screen + four exercise UIs, square/on-brand, RTL-aware. Instant check +
+re-queue; per-lesson progress bar. **Tap-a-word gloss** via the reader's popover (glossary
+first, LLM fallback). Feedback animations (correct/wrong) + **lesson-complete celebration**.
+**Done when:** play a full Persian lesson offline — teaching screens explain, exercises
+grade, mistakes re-queue, tapping a word glosses it, finishing celebrates.
 
 ### L3 — Progression + stats
-**Goal:** make it stick and measurable.
-- Unlock logic (next lesson/unit), XP award on completion, `LearnProgress` + `LearnStats`
-  updates (accuracy, active days, time, volume).
-- **Stats screen** (progress, accuracy, XP, active days, time/volume).
-- Course/unit management: delete, **reset progress** (reuse the ⋯-menu pattern).
+Unlock next lesson/unit; XP on completion; `LearnProgress` + `LearnStats` (accuracy, active
+days, time, volume). **Stats screen.** Course/unit management: delete, **reset progress**.
+**Done when:** completing lessons unlocks the next and updates the stats screen; delete a
+course or reset its progress.
 
-**Done when:** completing lessons unlocks the next and updates a stats screen; you can delete a course or reset its progress.
-
-### L4 — "New lesson" helper
-**Goal:** close the authoring loop in-app.
-- A screen that shows the **copyable generator prompt** (with fields for target language,
-  theme/level) and the import entry point, plus short docs on the paste-to-AI workflow.
-
-**Done when:** from inside the app you can copy the prompt, generate a unit in your AI, and import it — without leaving to find instructions.
+### L4 — In-app generator-prompt helper (context-aware)
+Per-course "Add lessons" / global "New course" screen that shows the **copyable generator
+prompt** for that course's `targetLang`/`baseLang`, **pre-filled with the course's current
+structure** (existing units + lesson counts + next indices) so the AI continues coherently
+and may extend existing units or add new ones. Plus the import entry point and short docs.
+**Done when:** from inside a course you copy a prompt that already knows what the course
+contains, generate in your AI, and import the result.
 
 ---
 
 ## 6. Fast-follows (post-MVP, pre-scoped)
-
-- **F-typed** — free-type translation exercise (fuzzy match, optional OpenAI-key grading).
-- **F-listen** — listening exercises via the device Web Speech `SpeechSynthesis` (free,
-  no audio files); a "listen" button on other types.
-- **F-speak** — speaking exercises via mic + `SpeechRecognition` (browser-dependent).
+- **F-typed** — free-type translation exercise (fuzzy match, optional key-graded).
+- **F-listen** — listening via device `SpeechSynthesis`; a "listen" button on other types.
+- **F-speak** — speaking via mic + `SpeechRecognition`.
 - **F-game** — hearts/lives, daily streak, crown/mastery levels.
-- **F-gloss** — tap a word during a lesson for its meaning (reuse the reader popover;
-  needs the key or file-supplied glosses).
-- **F-missed** — "most-missed items" analytics + targeted practice sessions.
+- **F-missed** — "most-missed items" analytics + targeted practice.
 
 ---
 
 ## 7. The generator prompt (the copyable artifact)
 
-Shipped in L4; the user fills the three braces and pastes their source content.
+Shipped in L4, copied from the app for a specific course. Structure:
 
-> You are authoring a language-learning **unit** for an app. Output **only** valid JSON,
-> nothing else, matching exactly this schema: *(schema from §3 inline)*.
+> You are authoring language-learning content for the "Learn" section of an app. When you
+> are ready, output **only** valid JSON matching this schema *(schema from §3 inline)* —
+> but **not yet**.
 >
-> - Target language: **{TARGET, e.g. German (de)}**. Base language: **{BASE, e.g. English (en)}**.
-> - Theme / level: **{THEME+LEVEL, e.g. "At the airport", A1}**.
-> - Produce **one unit** with **3–4 lessons** of **6–8 exercises** each, mixing all four
->   types (`choice`, `build`, `match`, `blank`).
-> - Wrong choices must be **plausible near-misses**; sentences short and level-appropriate;
->   include natural base-language translations; give each lesson a clear title.
-> - Use stable, unique `id`s (`{course}-u{n}`, `{course}-u{n}-l{m}`). Set `unit.index`.
-> - Base vocabulary and phrasing on this source material:
+> - Target language: **{TARGET}**. Base language: **{BASE}**.
+> - Course context: **{one of —}**
+>   - *New course.* / *This course already contains: Unit 1 "…" (4 lessons), Unit 2 "…"
+>     (3 lessons). Next unit index is 3; you may add new units and/or add lessons to
+>     existing units.*
+> - Source material: `{PASTE YOUR SOURCE CONTENT HERE}`
 >
-> ```
-> {PASTE YOUR SOURCE CONTENT HERE}
-> ```
+> **First, before generating anything, ask me clarifying questions** to confirm how to
+> structure this — how much of the material warrants a unit vs a lesson, the level, the
+> scope, whether to extend existing units or add new ones, ordering, and anything ambiguous.
+> **Decide the number of units and lessons yourself** from the amount and nature of the
+> content — do not use a fixed count. Only after I confirm, output the JSON (course meta +
+> the new/updated units). Requirements: stable unique ids and correct indices; a unit
+> `glossary` covering the vocabulary used; **teaching (`teach`) screens** to introduce new
+> concepts before drilling them; plausible near-miss distractors; short, level-appropriate
+> sentences; natural base-language translations.
 
 ---
 
 ## 8. Open assumptions
-
-- Base language defaults to **English**, consistent with the reader.
-- Lessons play in **authored order**; the AI is asked to order them pedagogically.
-- Sequential unlock (unit N needs unit N-1 complete); trivially relaxed to free-play.
-- Core Learn is **offline & keyless**; only fast-follows (typed grading, TTS/mic) touch
-  the network or device APIs.
-- The unit file is the durable source; re-importing a `unit.id` replaces that unit's
-  content but preserves the course and other units.
+- Base language is per-course, defaulting to **English** for now; no code hardcodes `en`.
+- First course language is **Persian (`fa`)**; RTL + a bundled Persian face.
+- Lessons play in **authored order**; the AI is asked to order pedagogically.
+- Sequential unlock (unit N needs unit N-1); trivially relaxed to free-play.
+- Core Learn is **offline & keyless**; gloss uses the file glossary offline, LLM only if a
+  key is present. Only fast-follows (typed grading, TTS/mic) add network/device APIs.

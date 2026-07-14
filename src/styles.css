@@ -346,6 +346,9 @@ p {
 }
 .listen-play {
   align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   padding: 14px 20px;
   border: 1px solid var(--border-strong);
   background: var(--card-2);

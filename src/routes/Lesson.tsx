@@ -5,6 +5,7 @@ import { useSettings } from '../db/settings'
 import { GlossChip } from '../learn/GlossChip'
 import type { GlossSource } from '../learn/gloss'
 import { navigate } from '../router'
+import { SpeakerIcon } from '../tts/SpeakerButton'
 import { useSpeak } from '../tts/useSpeak'
 import { recordEncounter } from '../vocab/bank'
 import { Button, ProgressBar } from '../ui'
@@ -454,7 +455,7 @@ function ListenView({
     <div className="ex">
       <p className="ex-prompt">tap what you hear</p>
       <button className="listen-play" onClick={() => say(item.text)} disabled={!hasKey}>
-        ♪ {hasKey ? 'play again' : 'add a key in settings for audio'}
+        <SpeakerIcon size={18} /> {hasKey ? 'play again' : 'add a key in settings for audio'}
       </button>
       {phase !== 'answering' && item.translation && <p className="ex-sub" dir={dir}>{item.text}</p>}
       <BuildBody tiles={item.tiles} dir={dir} phase={phase} built={built} setBuilt={setBuilt} onGloss={onGloss} />

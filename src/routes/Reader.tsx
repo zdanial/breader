@@ -19,6 +19,7 @@ import { useFitText } from '../reader/useFitText'
 import { useSwipe } from '../reader/useGestures'
 import { useOrientation } from '../reader/useOrientation'
 import { useSentenceTranslation } from '../reader/useSentenceTranslation'
+import { SpeakerIcon } from '../tts/SpeakerButton'
 import { useSpeak } from '../tts/useSpeak'
 import { recordEncounter } from '../vocab/bank'
 import { ProgressBar, Rule } from '../ui'
@@ -279,7 +280,7 @@ export default function Reader({ bookId }: { bookId: string }) {
             aria-label="Play sentence"
             onClick={() => sentence && speakSentence(sentence.text)}
           >
-            ♪
+            <SpeakerIcon size={17} />
           </button>
         )}
         <button

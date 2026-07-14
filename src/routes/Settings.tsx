@@ -116,7 +116,7 @@ export default function Settings() {
                 ))}
               </select>
               <Button variant="secondary" onClick={() => say('Hello, this is your reading voice.')}>
-                ▶ test
+                test
               </Button>
             </div>
           </div>

@@ -262,6 +262,77 @@ p {
   border-bottom-color: var(--fg);
 }
 
+/* ── learn path ─────────────────────────────────────────────────────────── */
+.course {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+.course-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  color: var(--fg);
+  line-height: 1.05;
+}
+.unit {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.unit-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.unit-numeral {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  line-height: 0.8;
+  color: var(--fg);
+  letter-spacing: -0.02em;
+}
+.unit-title {
+  font: 700 13px var(--font-sans);
+  color: var(--fg);
+}
+.lesson-path {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lesson-bubble {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--fg);
+}
+.lesson-bubble.locked {
+  opacity: 0.45;
+  cursor: default;
+}
+.lesson-bubble.done {
+  border-color: var(--accent);
+}
+.lesson-index {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  min-width: 26px;
+  color: var(--muted);
+}
+.lesson-bubble.done .lesson-index {
+  color: var(--accent);
+}
+.lesson-name {
+  font: 600 14px var(--font-sans);
+}
+
 /* ── library ────────────────────────────────────────────────────────────── */
 
 .shelf {

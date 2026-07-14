@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { deleteSavedQuote, removeHighlight } from '../db/bank'
+import { useLanguages } from '../db/languages'
 import { db } from '../db/schema'
 import { deleteVocab, deriveStatus } from '../vocab/bank'
 import { navigate } from '../router'
@@ -9,6 +10,7 @@ type Tab = 'words' | 'quotes' | 'highlights'
 
 const langName = (code: string) =>
   new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
+const prim = (l: string) => (l ?? '').toLowerCase().split('-')[0]
 
 /** "due now" / "due in 3d" — the word's next scheduled review. */
 function dueLabel(dueAt: number | undefined): string {
@@ -32,8 +34,9 @@ async function jumpTo(bookId: string | undefined, sentenceIndex: number) {
 
 export default function Saved() {
   const [tab, setTab] = useState<Tab>('words')
-  // the word bank: every tracked word (from reading + learning), soonest-due first
-  const words = useLiveQuery(
+  const { active } = useLanguages()
+  // the word bank for the active language (tracked words), soonest-due first
+  const allWords = useLiveQuery(
     () =>
       db.vocab
         .filter((v) => v.tracked)
@@ -41,13 +44,26 @@ export default function Saved() {
         .then((rows) => rows.sort((a, b) => (a.dueAt ?? Infinity) - (b.dueAt ?? Infinity))),
     [],
   )
-  const quotes = useLiveQuery(() => db.savedQuotes.orderBy('createdAt').reverse().toArray(), [])
-  const highlights = useLiveQuery(
+  const allQuotes = useLiveQuery(() => db.savedQuotes.orderBy('createdAt').reverse().toArray(), [])
+  const allHighlights = useLiveQuery(
     () => db.highlights.orderBy('id').toArray().then((h) => h.sort((a, b) => b.createdAt - a.createdAt)),
     [],
   )
   const books = useLiveQuery(() => db.books.toArray(), [])
   const bookTitle = (id: string) => books?.find((b) => b.id === id)?.title ?? 'Deleted book'
+  const bookLang = (id: string | undefined) => (id ? prim(books?.find((b) => b.id === id)?.targetLang ?? '') : '')
+
+  // scope everything to the active language (the bottom bar's selection)
+  const words = useMemo(() => allWords?.filter((v) => prim(v.lang) === active), [allWords, active])
+  const quotes = useMemo(
+    () => allQuotes?.filter((q) => prim(q.targetLang) === active),
+    [allQuotes, active],
+  )
+  const highlights = useMemo(
+    () => allHighlights?.filter((h) => bookLang(h.bookId) === active),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [allHighlights, active, books],
+  )
 
   const counts: Record<Tab, number | undefined> = {
     words: words?.length,
@@ -61,7 +77,7 @@ export default function Saved() {
         <a className="icon-btn" href="#/" aria-label="Back">
           ‹
         </a>
-        <h1>saved</h1>
+        <h1>{active ? `saved · ${langName(active).toLowerCase()}` : 'saved'}</h1>
       </header>
 
       <div className="tabs">

@@ -51,6 +51,7 @@ export interface Settings {
   fontFamily: string
   readAlign?: 'center' | 'left' | 'justify' // reading text alignment
   accentColor?: string // signal accent, drives --accent
+  ttsVoice?: string // OpenAI TTS voice
   collapsedLangs?: string[] // library sections the user has folded shut
   lastReadBookId?: string // the 'currently reading' book (live indicator)
 }
@@ -150,6 +151,8 @@ export type LessonItem =
   | { type: 'build'; prompt: string; tiles: string[]; answer: string[]; accept?: string[][]; note?: string }
   | { type: 'match'; pairs: Array<[string, string]>; note?: string }
   | { type: 'blank'; prompt: string; choices: string[]; answer: number; translation?: string; note?: string }
+  // listen: hear the spoken target `text`, rebuild it from `tiles` (graded like build)
+  | { type: 'listen'; text: string; tiles: string[]; answer: string[]; accept?: string[][]; translation?: string; note?: string }
 
 export interface LearnLesson {
   id: string
@@ -186,6 +189,13 @@ export interface LearnFile {
   createdAt: number
 }
 
+// Cached TTS audio, keyed by hash(model + voice + text). Permanent on-device.
+export interface AudioClip {
+  key: string
+  blob: Blob
+  createdAt: number
+}
+
 // ── Database ─────────────────────────────────────────────────────────────────
 
 class BreaderDB extends Dexie {
@@ -206,6 +216,7 @@ class BreaderDB extends Dexie {
   learnProgress!: Table<LearnProgress, string>
   learnStats!: Table<LearnStats, string>
   learnFiles!: Table<LearnFile, string>
+  audio!: Table<AudioClip, string>
 
   constructor() {
     super('breader')
@@ -243,6 +254,10 @@ class BreaderDB extends Dexie {
       learnProgress: 'lessonId, courseId, unitId',
       learnStats: 'id',
       learnFiles: 'id, createdAt',
+    })
+    // v7: cached TTS audio
+    this.version(7).stores({
+      audio: 'key, createdAt',
     })
   }
 }

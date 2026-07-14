@@ -11,7 +11,11 @@ export const DEFAULT_SETTINGS: Settings = {
   fontFamily: 'serif',
   readAlign: 'center',
   accentColor: DEFAULT_ACCENT,
+  ttsVoice: 'alloy',
 }
+
+// OpenAI TTS voices offered in Settings.
+export const TTS_VOICES = ['alloy', 'nova', 'shimmer', 'echo', 'fable', 'onyx'] as const
 
 // Reading font: the design-system serif (DM Serif Display) for the brand
 // reading experience, or Inter for a plainer sans read.

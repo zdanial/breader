@@ -6,9 +6,11 @@ import {
   DEFAULT_ACCENT,
   DEFAULT_SETTINGS,
   FONT_STACKS,
+  TTS_VOICES,
   updateSettings,
   useSettings,
 } from '../db/settings'
+import { useSpeak } from '../tts/useSpeak'
 import { Button, Rule } from '../ui'
 
 const formatBytes = (n: number) =>
@@ -23,6 +25,7 @@ const ALIGNS = ['center', 'left', 'justify'] as const
 
 export default function Settings() {
   const settings = useSettings()
+  const { say } = useSpeak()
   const [keyDraft, setKeyDraft] = useState<string | null>(null)
   const [modelDraft, setModelDraft] = useState<string | null>(null)
   const [showKey, setShowKey] = useState(false)
@@ -98,8 +101,28 @@ export default function Settings() {
             </Button>
             {saved && <span className="muted">saved ✓</span>}
           </div>
+          <div className="field">
+            <label>voice (audio)</label>
+            <div className="row">
+              <select
+                value={settings.ttsVoice ?? 'alloy'}
+                onChange={(e) => updateSettings({ ttsVoice: e.target.value })}
+                style={{ flex: 1 }}
+              >
+                {TTS_VOICES.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+              <Button variant="secondary" onClick={() => say('Hello, this is your reading voice.')}>
+                ▶ test
+              </Button>
+            </div>
+          </div>
           <p className="note">
             your key is stored only on this device and sent only to OpenAI. nothing else ever sees it.
+            audio uses OpenAI text-to-speech and is cached on device.
           </p>
         </section>
 

@@ -12,10 +12,14 @@
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <title>Panglossa</title>
     <script>
-      // set theme before first paint to avoid a flash (corrected later from settings)
+      // set theme before first paint to avoid a flash (corrected later from settings).
+      // also match theme-color to the app bg so the iOS status bar / Safari toolbar
+      // don't render as dark bands over a light app.
       try {
         var m = matchMedia('(prefers-color-scheme: dark)').matches
         document.documentElement.dataset.theme = m ? 'dark' : 'light'
+        var mc = document.querySelector('meta[name="theme-color"]')
+        if (mc) mc.setAttribute('content', m ? '#0b0b0c' : '#e8e6ee')
       } catch (e) {
         document.documentElement.dataset.theme = 'dark'
       }

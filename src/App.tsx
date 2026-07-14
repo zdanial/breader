@@ -22,6 +22,10 @@ export default function App() {
       const theme =
         settings.theme === 'system' ? (mq.matches ? 'dark' : 'light') : settings.theme
       document.documentElement.dataset.theme = theme
+      // keep the iOS status bar / Safari toolbar tint matched to the app bg
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', theme === 'dark' ? '#0b0b0c' : '#e8e6ee')
     }
     apply()
     mq.addEventListener('change', apply)

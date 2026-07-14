@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { exportBackup, importBackup, type BackupScope } from '../db/backup'
 import { db } from '../db/schema'
 import {
   ACCENT_CHOICES,
@@ -35,6 +36,43 @@ export default function Settings() {
     null,
   )
   const translationCount = useLiveQuery(() => db.translations.count(), [])
+
+  const backupRef = useRef<HTMLInputElement>(null)
+  const [backupBusy, setBackupBusy] = useState(false)
+  const [backupMsg, setBackupMsg] = useState<string | null>(null)
+
+  async function doExport(scope: BackupScope) {
+    setBackupBusy(true)
+    setBackupMsg(null)
+    try {
+      const blob = await exportBackup(scope)
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `panglossa-backup-${scope}.zip`
+      a.click()
+      URL.revokeObjectURL(url)
+      setBackupMsg(`exported ${(blob.size / 1e6).toFixed(1)} MB`)
+    } catch (e) {
+      setBackupMsg(e instanceof Error ? e.message : 'export failed')
+    } finally {
+      setBackupBusy(false)
+    }
+  }
+
+  async function doImport(file: File) {
+    if (!confirm('Restore from this backup? It merges into your current data, overwriting items with the same id.')) return
+    setBackupBusy(true)
+    setBackupMsg(null)
+    try {
+      const r = await importBackup(file)
+      setBackupMsg(`restored ${r.rows.toLocaleString()} rows across ${r.tables} tables`)
+    } catch (e) {
+      setBackupMsg(e instanceof Error ? e.message : 'restore failed')
+    } finally {
+      setBackupBusy(false)
+    }
+  }
 
   useEffect(() => {
     Promise.all([
@@ -207,6 +245,41 @@ export default function Settings() {
               </Button>
             </div>
           </div>
+        </section>
+
+        <section className="section">
+          <h2>back up / restore</h2>
+          <p className="note">
+            all your data lives on this device — removing the app can delete it. export a
+            backup file you can re-import here or on another device. (your key is never included.)
+          </p>
+          <div className="row">
+            <Button variant="secondary" onClick={() => doExport('full')} disabled={backupBusy} style={{ flex: 1 }}>
+              export full
+            </Button>
+            <Button variant="secondary" onClick={() => doExport('light')} disabled={backupBusy} style={{ flex: 1 }}>
+              export light
+            </Button>
+          </div>
+          <Button variant="secondary" onClick={() => backupRef.current?.click()} disabled={backupBusy}>
+            {backupBusy ? 'working…' : 'restore from backup'}
+          </Button>
+          <input
+            ref={backupRef}
+            type="file"
+            accept=".zip,application/zip"
+            hidden
+            onChange={(e) => {
+              const f = e.target.files?.[0]
+              if (f) void doImport(f)
+              e.target.value = ''
+            }}
+          />
+          {backupMsg && <p className="note">{backupMsg}</p>}
+          <p className="note">
+            <b>full</b> includes your book files (large); <b>light</b> skips books, audio &amp;
+            parsed text (smaller — re-import books after).
+          </p>
         </section>
 
         <section className="section">

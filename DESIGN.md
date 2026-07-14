@@ -457,3 +457,12 @@ interface VocabEntry {
   the same word tapped in the reader.
 - **Build v0 early** (a Dexie table + upsert API, wired into the reader's word-tap and Learn
   L2 exercises) so real data accumulates before the advanced readers are built.
+
+### 11.1 Planned refinements (to design later, once lessons work)
+User direction (2026-07-13) — do NOT implement yet; design a system around this after L2:
+1. **Reader save split:** one glossed word → **word bank**; a multi-word highlight → the
+   **quote bank** (the save button should read "quote bank" for multi-word selections).
+2. **Track source + language** on every entry (reader vs learn; per target language) — the
+   model already has `sources` + `lang`; formalize how they're used.
+3. **Cross-language:** stats over the word bank and **aligning word banks across languages**
+   (e.g. cognates, shared roots, a unified vocabulary view).

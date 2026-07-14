@@ -38,34 +38,56 @@ Any target word is tappable for a gloss, so include a "glossary" for the vocabul
 export function buildGeneratorPrompt(opts: {
   targetLang: string
   baseLang: string
-  courseContext: string // "New course." or a summary of existing structure
+  languageContext: string // a summary of every course/unit/lesson in this language
+  hasKnownWords: boolean // whether a "known words" list is pasted alongside
 }): string {
-  return `You are authoring language-learning content for the "Learn" section of an app. When you are ready, output ONLY valid JSON matching this schema — but NOT yet:
+  return `You are authoring language-learning content for the "Learn" section of an app. When you are ready, output ONLY valid JSON — one fragment per course, matching this schema — but NOT yet:
 
 ${SCHEMA}
 
 ${ITEM_UX}
 
 - Target language: ${langLabel(opts.targetLang)}. Base language: ${langLabel(opts.baseLang)}.
-- Course context: ${opts.courseContext}
+- What already exists in ${langLabel(opts.targetLang)}: ${opts.languageContext}
 - Source material: <<< PASTE YOUR SOURCE CONTENT HERE >>>
+${opts.hasKnownWords ? '- The learner\'s KNOWN WORDS are pasted separately below — read them.' : ''}
 
-FIRST, before generating anything, ask me clarifying questions to confirm how to structure this — how much of the material warrants a unit vs a lesson, the level, the scope, whether to extend existing units or add new ones, ordering, and anything ambiguous. DECIDE THE NUMBER OF UNITS AND LESSONS YOURSELF from the amount and nature of the content — do not use a fixed count. Only after I confirm, output the JSON (course meta + the new/updated units).
+You decide the shape: extend an existing course (reuse its exact course.id and the ids/indices of the units you touch) OR create a new course with a new stable id like "${opts.targetLang}-<topic>". Output one JSON fragment per course you create or update; if several, I will save them together as a .zip.
 
-Requirements: keep the exact "course.id" I give you so it merges correctly; use stable unique ids and correct indices; include a unit "glossary" of the vocabulary used; add "teach" screens before drilling new concepts; make wrong choices plausible near-misses; keep sentences short and level-appropriate; include natural base-language translations.`
+FIRST, before generating anything, ask me clarifying questions to confirm how to structure this — which existing course to extend vs. starting a new one, how much material warrants a unit vs a lesson, the level, scope, ordering, and anything ambiguous. DECIDE THE NUMBER OF UNITS AND LESSONS YOURSELF from the amount and nature of the content — do not use a fixed count. Only after I confirm, output the JSON.
+${
+  opts.hasKnownWords
+    ? '\nRECYCLE: build lessons that mostly REUSE the known words listed below, and introduce only a controlled number of NEW words. List every new word in the unit "glossary" so it enters the learner\'s word bank.\n'
+    : ''
+}
+Requirements: use stable unique ids and correct indices; include a unit "glossary" of the vocabulary used; add "teach" screens before drilling new concepts; make wrong choices plausible near-misses; keep sentences short and level-appropriate; include natural base-language translations.`
 }
 
-/** A human summary of a course's current structure for the prompt context. */
-export function courseContextSummary(
-  courseId: string,
-  units: Array<{ id: string; index: number; title: string }>,
+/** A human summary of every course/unit/lesson in a language, for the prompt. */
+export function languageContextSummary(
+  courses: Array<{ id: string; title: string }>,
+  unitsOf: (courseId: string) => Array<{ id: string; index: number; title: string }>,
   lessonCount: (unitId: string) => number,
 ): string {
-  if (units.length === 0) return `New course. Use course.id "${courseId}".`
-  const sorted = [...units].sort((a, b) => a.index - b.index)
-  const list = sorted
-    .map((u) => `Unit ${u.index} "${u.title}" (${lessonCount(u.id)} lessons)`)
-    .join('; ')
-  const nextIndex = Math.max(...sorted.map((u) => u.index)) + 1
-  return `This course (course.id "${courseId}") already contains: ${list}. Next unit index is ${nextIndex}. You may add new units and/or add lessons to existing units (reuse their ids).`
+  if (courses.length === 0) return 'nothing yet — this is the first course in this language.'
+  return courses
+    .map((c) => {
+      const us = [...unitsOf(c.id)].sort((a, b) => a.index - b.index)
+      const body =
+        us.length === 0
+          ? 'no units yet'
+          : us.map((u) => `unit ${u.index} "${u.title}" (${lessonCount(u.id)} lessons)`).join('; ')
+      return `course.id "${c.id}" — "${c.title}": ${body}`
+    })
+    .join(' | ')
+}
+
+/** The separate, copyable "known words" block the user pastes alongside the
+ *  prompt so authored content recycles vocabulary the learner already knows. */
+export function buildKnownWordsBlock(words: Array<{ surface: string; gloss: string }>): string {
+  if (words.length === 0) return ''
+  const list = words.map((w) => `${w.surface} — ${w.gloss}`).join('\n')
+  return `KNOWN WORDS — the learner already knows these ${words.length} words. Reuse them freely; introduce only a controlled number of NEW words and put every new word in a unit "glossary".
+
+${list}`
 }

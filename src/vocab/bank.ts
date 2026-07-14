@@ -159,11 +159,14 @@ export async function dueWords(lang: string, opts?: { now?: number; limit?: numb
   return opts?.limit ? rows.slice(0, opts.limit) : rows
 }
 
+/** A usable single-word bank entry: has a gloss and isn't a stray phrase. */
+export const isWordEntry = (v: VocabEntry) => !!v.gloss && !/\s/.test((v.surface ?? v.lemma).trim())
+
 /** Words the user knows / is learning (for generator recycling + review pool). */
 export async function knownWords(lang: string, limit = 300): Promise<VocabEntry[]> {
   const all = await trackedWords(lang)
   return all
-    .filter((v) => deriveStatus(v) !== 'new' && !!v.gloss)
+    .filter((v) => deriveStatus(v) !== 'new' && isWordEntry(v))
     .sort((a, b) => (b.lastSeenAt ?? 0) - (a.lastSeenAt ?? 0))
     .slice(0, limit)
 }

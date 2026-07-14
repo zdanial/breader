@@ -3,7 +3,7 @@
 // always "no new words." Runs through the shared LessonPlayer; grades feed the
 // SM-2 scheduler. LLM sentence-context review is a later, optional layer.
 import type { LessonItem, VocabEntry } from '../db/schema'
-import { dueWords, trackedWords } from './bank'
+import { dueWords, isWordEntry, trackedWords } from './bank'
 
 const RTL = new Set(['ar', 'fa', 'he', 'ur', 'ps', 'sd', 'yi', 'dv'])
 const prim = (l: string) => (l ?? '').toLowerCase().split('-')[0]
@@ -35,7 +35,7 @@ function shuffle<T>(arr: T[]): T[] {
 const inScope = (v: VocabEntry, s?: ReviewScope) =>
   !s || ((!s.courseId || v.origin?.courseId === s.courseId) && (!s.unitId || v.origin?.unitId === s.unitId))
 
-const glossed = (v: VocabEntry) => !!v.gloss && !!(v.surface ?? v.lemma)
+const glossed = (v: VocabEntry) => isWordEntry(v)
 
 /** How many words are due for review now (for the Learn-home badge). */
 export async function reviewDueCount(lang: string, scope?: ReviewScope): Promise<number> {

@@ -10,6 +10,15 @@ type Tab = 'words' | 'quotes' | 'highlights'
 const langName = (code: string) =>
   new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
 
+/** "due now" / "due in 3d" — the word's next scheduled review. */
+function dueLabel(dueAt: number | undefined): string {
+  if (dueAt == null) return ''
+  const days = Math.round((dueAt - Date.now()) / 86_400_000)
+  if (days <= 0) return 'due now'
+  if (days === 1) return 'due tomorrow'
+  return `due in ${days}d`
+}
+
 /** Jump back into the reader at the exact sentence (if the book still exists). */
 async function jumpTo(bookId: string | undefined, sentenceIndex: number) {
   if (!bookId) return
@@ -23,13 +32,13 @@ async function jumpTo(bookId: string | undefined, sentenceIndex: number) {
 
 export default function Saved() {
   const [tab, setTab] = useState<Tab>('words')
-  // saved single words now live in the shared word bank (vocab)
+  // the word bank: every tracked word (from reading + learning), soonest-due first
   const words = useLiveQuery(
     () =>
       db.vocab
-        .filter((v) => v.sources.includes('saved'))
+        .filter((v) => v.tracked)
         .toArray()
-        .then((rows) => rows.sort((a, b) => b.lastSeenAt - a.lastSeenAt)),
+        .then((rows) => rows.sort((a, b) => (a.dueAt ?? Infinity) - (b.dueAt ?? Infinity))),
     [],
   )
   const quotes = useLiveQuery(() => db.savedQuotes.orderBy('createdAt').reverse().toArray(), [])
@@ -68,7 +77,10 @@ export default function Saved() {
         {tab === 'words' && (
           <>
             {words?.length === 0 && (
-              <p className="empty">No words yet — tap ★ word bank on a word while reading.</p>
+              <p className="empty">
+                Your word bank is empty — it fills as you save words while reading and practice
+                lessons. Tap ★ word bank on a word, or complete a lesson.
+              </p>
             )}
             {words?.map((w) => (
               <div key={w.id} className="bank-item">
@@ -83,7 +95,7 @@ export default function Saved() {
                     </span>
                   )}
                   <span className="bank-meta">
-                    {langName(w.lang)} · {deriveStatus(w)}
+                    {langName(w.lang)} · {deriveStatus(w)} · {dueLabel(w.dueAt)}
                     {w.origin?.bookId ? ` · ${bookTitle(w.origin.bookId)}` : ''}
                   </span>
                 </div>

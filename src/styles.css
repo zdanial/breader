@@ -265,22 +265,29 @@ p {
   border-bottom-color: var(--fg);
 }
 
-/* ── bottom language bar ─────────────────────────────────────────────────── */
+/* ── bottom language bar (floating pill) ─────────────────────────────────── */
 .langbar {
   position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
   z-index: 40;
+  max-width: 460px;
+  margin: 0 auto;
   display: flex;
-  align-items: stretch;
-  background: var(--bg);
-  border-top: var(--rule);
-  padding-bottom: env(safe-area-inset-bottom);
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.22);
 }
 .langbar-scroll {
   flex: 1;
   display: flex;
+  align-items: center;
+  gap: 2px;
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -289,35 +296,35 @@ p {
 }
 .langbar-tab {
   flex: 0 0 auto;
-  min-height: 52px;
-  padding: 0 20px;
+  padding: 9px 18px;
   background: none;
+  border: none;
+  border-radius: 20px;
   font: 700 14px var(--font-sans);
   color: var(--muted);
   white-space: nowrap;
-  border-top: 3px solid transparent;
-  margin-top: -3px; /* sit the accent over the bar's top rule */
 }
 .langbar-tab.active {
-  color: var(--fg);
-  border-top-color: var(--accent);
+  background: var(--fg);
+  color: var(--bg);
 }
 .langbar-add {
   flex: 0 0 auto;
-  width: 56px;
-  min-height: 52px;
+  width: 42px;
+  height: 42px;
   background: none;
-  font-size: 24px;
+  border: none;
+  font-size: 22px;
   line-height: 1;
-  color: var(--fg);
-  border-left: 1px solid var(--border);
+  color: var(--muted);
 }
-/* let scrolling content clear the fixed bar. Higher specificity than the base
+/* let scrolling content clear the floating bar. Higher specificity than the base
    .shelf rule (whose `padding` shorthand is later in source) so its 20px bottom
-   doesn't win and hide the last row behind the bar. */
+   doesn't win and hide the last row behind the bar. The pill now floats with a
+   12px bottom margin + its own height, so this reserves more space than before. */
 .shelf.has-langbar,
 .has-langbar {
-  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  padding-bottom: calc(84px + env(safe-area-inset-bottom));
 }
 .lang-pick {
   display: flex;
@@ -1043,6 +1050,51 @@ p {
   color: var(--fg);
   opacity: 0.06;
   pointer-events: none;
+}
+
+/* word-bank card — eyebrow + review action over a row of preview word tiles */
+.wordbank-card {
+  text-align: left;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px 16px 14px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.wordbank-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.wordbank-eyebrow {
+  font: 700 11px var(--font-sans);
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--muted);
+}
+.wordbank-action {
+  flex: 0 0 auto;
+  font: 700 14px var(--font-sans);
+  color: var(--accent);
+  white-space: nowrap;
+}
+.wordbank-preview {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.wordbank-preview::-webkit-scrollbar {
+  display: none;
+}
+.wordbank-tile {
+  flex: 0 0 auto;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 /* lesson rows with left signal bar */

@@ -6,7 +6,8 @@ import { importLearnFile } from '../learn/importCourse'
 import { deleteCourse, resetCourseProgress } from '../learn/ops'
 import { computeStreak } from '../learn/progress'
 import { navigate } from '../router'
-import { trackedWords } from '../vocab/bank'
+import { isWordEntry, trackedWords } from '../vocab/bank'
+import { dirFor } from '../vocab/review'
 import { Button, LanguageBar, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
 
 const langName = (code: string) =>
@@ -25,12 +26,21 @@ export default function LearnHome() {
   const stats = useLiveQuery(() => db.learnStats.get('singleton'), [])
   const { langs, active, setActive, addLanguage } = useLanguages()
 
-  // word-bank review counts for the active language (tracked + due now)
+  // word-bank review counts + a few preview words for the active language
   const review = useLiveQuery(async () => {
-    if (!active) return { tracked: 0, due: 0 }
-    const withGloss = (await trackedWords(active)).filter((v) => v.gloss)
+    if (!active) return { tracked: 0, due: 0, words: [] as string[] }
+    const words = (await trackedWords(active)).filter(isWordEntry)
     const now = Date.now()
-    return { tracked: withGloss.length, due: withGloss.filter((v) => (v.dueAt ?? Infinity) <= now).length }
+    const due = words.filter((v) => (v.dueAt ?? Infinity) <= now)
+    const rest = words.filter((v) => (v.dueAt ?? Infinity) > now)
+    // prefer due (soonest first), then most-recently-seen, for the preview row
+    const preview = [
+      ...due.sort((a, b) => (a.dueAt ?? 0) - (b.dueAt ?? 0)),
+      ...rest.sort((a, b) => (b.lastSeenAt ?? 0) - (a.lastSeenAt ?? 0)),
+    ]
+      .slice(0, 4)
+      .map((v) => v.surface ?? v.lemma)
+    return { tracked: words.length, due: due.length, words: preview }
   }, [active])
 
   const fileRef = useRef<HTMLInputElement>(null)
@@ -99,23 +109,41 @@ export default function LearnHome() {
           <p className="empty">no languages yet — tap ＋ to add one and generate your first course.</p>
         ) : (
           <>
-            {/* word-bank review for the active language */}
+            {/* word-bank card for the active language: card body → review, tiles → saved */}
             {review && review.tracked > 0 && active && (
-              <button
-                className="continue-card review-card"
+              <div
+                className="wordbank-card"
                 dir="ltr"
+                role="button"
+                tabIndex={0}
                 onClick={() => navigate(`/review/${active}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') navigate(`/review/${active}`)
+                }}
               >
-                <span className="continue-eyebrow">word bank · {langName(active).toLowerCase()}</span>
-                <span className="continue-title">review</span>
-                <span className="continue-foot">
-                  <span className="muted">{review.tracked} words tracked</span>
-                  <span className="continue-resume">
-                    {review.due > 0 ? `${review.due} due →` : 'practice →'}
+                <div className="wordbank-top">
+                  <span className="wordbank-eyebrow">word bank · {langName(active).toLowerCase()}</span>
+                  <span className="wordbank-action">
+                    {review.due > 0 ? `review ${review.due} due →` : 'practice →'}
                   </span>
-                </span>
-                <span className="continue-ghost">{pad2(Math.min(99, review.due))}</span>
-              </button>
+                </div>
+                {review.words.length > 0 && (
+                  <div className="wordbank-preview" dir={dirFor(active)}>
+                    {review.words.map((surface, i) => (
+                      <button
+                        key={i}
+                        className="tile wordbank-tile"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate('/saved')
+                        }}
+                      >
+                        {surface}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
 
             {activeCourses.length === 0 ? (

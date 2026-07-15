@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
 import { exportBackup, importBackup, type BackupScope } from '../db/backup'
 import { db } from '../db/schema'
+import { storageBreakdown, type StorageCategory } from '../db/storage'
 import {
   ACCENT_CHOICES,
   DEFAULT_ACCENT,
@@ -35,6 +36,7 @@ export default function Settings() {
   const [storage, setStorage] = useState<{ usage?: number; quota?: number; persisted?: boolean } | null>(
     null,
   )
+  const [breakdown, setBreakdown] = useState<StorageCategory[] | null>(null)
   const translationCount = useLiveQuery(() => db.translations.count(), [])
 
   const backupRef = useRef<HTMLInputElement>(null)
@@ -79,6 +81,7 @@ export default function Settings() {
       navigator.storage?.estimate?.() ?? Promise.resolve({}),
       navigator.storage?.persisted?.() ?? Promise.resolve(undefined),
     ]).then(([est, persisted]) => setStorage({ usage: est.usage, quota: est.quota, persisted }))
+    void storageBreakdown().then(setBreakdown)
   }, [])
 
   const keyValue = keyDraft ?? settings.openaiKey ?? ''
@@ -290,6 +293,25 @@ export default function Settings() {
               : 'storage usage unavailable.'}
             {translationCount != null && ` ${translationCount.toLocaleString()} cached translations.`}
           </p>
+
+          {breakdown && breakdown.length > 0 && (
+            <div className="storage-list">
+              {breakdown.map((c) => {
+                const max = Math.max(...breakdown.map((x) => x.bytes))
+                return (
+                  <div key={c.key} className="storage-row">
+                    <span className="storage-label">{c.label}</span>
+                    <span className="bar">
+                      <span className="bar-fill" style={{ width: `${(c.bytes / max) * 100}%` }} />
+                    </span>
+                    <span className="storage-size">{formatBytes(c.bytes)}</span>
+                  </div>
+                )
+              })}
+              <p className="note">breakdown is approximate — actual on-device size varies.</p>
+            </div>
+          )}
+
           <p className="note">
             {storage?.persisted
               ? 'persistent storage granted — your books won’t be evicted.'

@@ -215,6 +215,30 @@ p {
   font: 400 12.5px/1.5 var(--font-sans);
   color: var(--muted);
 }
+
+/* storage breakdown rows (Settings) */
+.storage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 12px 0 4px;
+}
+.storage-row {
+  display: grid;
+  grid-template-columns: 1fr 72px auto;
+  align-items: center;
+  gap: 12px;
+}
+.storage-label {
+  font: 500 13.5px var(--font-sans);
+  color: var(--fg);
+}
+.storage-size {
+  font: 600 12px var(--font-sans);
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
 .row {
   display: flex;
   align-items: center;

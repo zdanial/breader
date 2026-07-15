@@ -47,23 +47,27 @@ export function LanguageBar({
   const display = (code: string) =>
     (new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code).toLowerCase()
   return (
-    <nav className="langbar" aria-label="Languages">
-      <div className="langbar-scroll">
-        {langs.map((l) => (
-          <button
-            key={l}
-            className={`langbar-tab ${l === active ? 'active' : ''}`.trim()}
-            aria-current={l === active}
-            onClick={() => onSelect(l)}
-          >
-            {display(l)}
-          </button>
-        ))}
-      </div>
-      <button className="langbar-add" onClick={onAdd} aria-label="Add language or content">
-        ＋
-      </button>
-    </nav>
+    // dock paints the app bg edge-to-edge (incl. the bottom safe area) so nothing
+    // shows through under the floating pill; the pill itself is centered inside it
+    <div className="langbar-dock">
+      <nav className="langbar" aria-label="Languages">
+        <div className="langbar-scroll">
+          {langs.map((l) => (
+            <button
+              key={l}
+              className={`langbar-tab ${l === active ? 'active' : ''}`.trim()}
+              aria-current={l === active}
+              onClick={() => onSelect(l)}
+            >
+              {display(l)}
+            </button>
+          ))}
+        </div>
+        <button className="langbar-add" onClick={onAdd} aria-label="Add language or content">
+          ＋
+        </button>
+      </nav>
+    </div>
   )
 }
 

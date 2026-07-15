@@ -407,12 +407,12 @@ p {
 }
 .ex-prompt {
   font-family: var(--font-serif);
-  font-size: 22px;
+  font-size: calc(22px * var(--font-scale, 1));
   line-height: 1.2;
   color: var(--fg);
 }
 .ex-prompt.tgt-prompt {
-  font-size: 26px;
+  font-size: calc(26px * var(--font-scale, 1));
 }
 .ex-sub {
   font: 400 14px var(--font-sans);
@@ -435,6 +435,7 @@ p {
   background: var(--card);
   color: var(--fg);
   font: 600 17px var(--font-sans);
+  font-size: calc(17px * var(--font-scale, 1));
   text-align: left;
   cursor: pointer;
 }
@@ -482,6 +483,7 @@ p {
   background: var(--card-2);
   color: var(--fg);
   font: 600 17px var(--font-sans);
+  font-size: calc(17px * var(--font-scale, 1));
   cursor: pointer;
 }
 .tile.ghost {
@@ -659,6 +661,7 @@ p {
 }
 .teach-body {
   font: 400 16px/1.6 var(--font-sans);
+  font-size: calc(16px * var(--font-scale, 1));
   color: var(--fg-soft);
 }
 .teach-examples {
@@ -676,7 +679,7 @@ p {
 }
 .teach-ex .tgt {
   font-family: var(--font-serif);
-  font-size: 20px;
+  font-size: calc(20px * var(--font-scale, 1));
   color: var(--fg);
   cursor: pointer;
 }
@@ -722,7 +725,7 @@ p {
 }
 .fb-headword {
   font-family: var(--font-serif);
-  font-size: 26px;
+  font-size: calc(26px * var(--font-scale, 1));
   line-height: 1.05;
   color: var(--fg);
 }

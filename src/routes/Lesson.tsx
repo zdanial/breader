@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { db, type LessonItem, type VocabOrigin } from '../db/schema'
-import { useSettings } from '../db/settings'
+import { updateSettings, useSettings } from '../db/settings'
 import { GlossChip } from '../learn/GlossChip'
 import type { GlossSource } from '../learn/gloss'
 import { segmentParagraph } from '../segment/registry'
@@ -38,7 +38,9 @@ export interface LessonSummary {
 // ── data wrapper: loads an authored lesson and persists progress ──────────────
 
 export default function Lesson({ lessonId }: { lessonId: string }) {
-  const lesson = useLiveQuery(() => db.learnLessons.get(lessonId), [lessonId])
+  // null (not undefined) once resolved-but-missing, so we can tell "loading"
+  // from "not found" — Dexie returns undefined for both otherwise.
+  const lesson = useLiveQuery(() => db.learnLessons.get(lessonId).then((l) => l ?? null), [lessonId])
   const course = useLiveQuery(
     () => (lesson ? db.learnCourses.get(lesson.courseId) : undefined),
     [lesson],
@@ -146,6 +148,8 @@ export function LessonPlayer({
   onFinish: (s: LessonSummary) => void
   headline?: string // celebration title override (e.g. "review done")
 }) {
+  const settings = useSettings()
+  const scale = settings.fontScale
   const gradedCount = useMemo(
     () => items.filter((i) => i.type !== 'teach' && i.type !== 'read').length,
     [items],
@@ -282,12 +286,26 @@ export function LessonPlayer({
   const showQHead = item != null && item.type !== 'read'
 
   return (
-    <div className="page lesson">
+    <div className="page lesson" style={{ ['--font-scale' as string]: scale } as React.CSSProperties}>
       <header className="topbar lesson-top">
         <a className="icon-btn" href="#/learn" aria-label="Quit lesson">
           ✕
         </a>
         <SegmentedLedger count={items.length} done={done} current={itemIndex} />
+        <button
+          className="font-btn"
+          aria-label="Smaller text"
+          onClick={() => updateSettings({ fontScale: Math.max(0.4, +(scale - 0.1).toFixed(2)) })}
+        >
+          A−
+        </button>
+        <button
+          className="font-btn"
+          aria-label="Larger text"
+          onClick={() => updateSettings({ fontScale: Math.min(1.8, +(scale + 0.1).toFixed(2)) })}
+        >
+          A+
+        </button>
       </header>
 
       {item?.type === 'read' ? (

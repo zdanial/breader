@@ -6,8 +6,9 @@ import { useLanguages } from '../db/languages'
 import { useSettings } from '../db/settings'
 import { commitImport, prepareImport, type ImportPreview } from '../parsing/importBook'
 import { acceptedExtensions } from '../parsing/registry'
+import { computeStreak } from '../learn/progress'
 import { navigate } from '../router'
-import { Button, LanguageBar, ProgressBar, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
+import { Button, LanguageBar, ProgressBar, Rule, SavedStar, SectionTabs, Sheet, StatsPill, Wordmark } from '../ui'
 
 const LANGS: Array<[string, string]> = [
   ['de', 'German'],
@@ -88,6 +89,8 @@ export default function Library() {
   const coverRows = useLiveQuery(() => db.covers.toArray(), [])
   const settings = useSettings()
   const { langs, active, setActive } = useLanguages()
+  const stats = useLiveQuery(() => db.learnStats.get('singleton'), [])
+  const streak = computeStreak(stats?.activeDays ?? [])
   const fileRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [title, setTitle] = useState('')
@@ -159,9 +162,8 @@ export default function Library() {
     <div className="page">
       <header className="topbar">
         <Wordmark />
-        <a className="icon-btn" href="#/saved" aria-label="Saved words and quotes">
-          ★
-        </a>
+        <SavedStar />
+        <StatsPill streak={streak} />
         <a className="icon-btn" href="#/settings" aria-label="Settings">
           ⚙
         </a>

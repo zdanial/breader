@@ -1320,7 +1320,9 @@ p {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 30;
+  /* above the language bar dock (z-index 40) so a sheet covers it rather than
+     the bar clipping the sheet's lowest buttons */
+  z-index: 50;
 }
 .sheet,
 .modal {

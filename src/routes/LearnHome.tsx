@@ -7,7 +7,7 @@ import { deleteCourse, resetCourseProgress } from '../learn/ops'
 import { computeStreak } from '../learn/progress'
 import { navigate } from '../router'
 import { dirFor, wordBankSummary } from '../vocab/review'
-import { Button, LanguageBar, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
+import { Button, LanguageBar, Rule, SavedStar, SectionTabs, Sheet, StatsPill, Wordmark } from '../ui'
 
 const langName = (code: string) =>
   new Intl.DisplayNames(['en'], { type: 'language' }).of(code) ?? code
@@ -73,12 +73,8 @@ export default function LearnHome() {
     <div className="page">
       <header className="topbar">
         <Wordmark />
-        {stats && (stats.activeDays?.length ?? 0) > 0 && (
-          <a className="streak-pill" href="#/learn-stats" aria-label="Stats">
-            <span className="streak-dot" />
-            {streak}d
-          </a>
-        )}
+        <SavedStar />
+        <StatsPill streak={streak} />
         <a className="icon-btn" href="#/settings" aria-label="Settings">
           ⚙
         </a>

@@ -16,6 +16,26 @@ export function Rule({ style }: { style?: React.CSSProperties }) {
   return <span className="rule" style={style} />
 }
 
+/** Word-bank shortcut (★) for the home headers → the Saved / word-bank screen. */
+export function SavedStar() {
+  return (
+    <a className="icon-btn" href="#/saved" aria-label="Word bank">
+      ★
+    </a>
+  )
+}
+
+/** Stats shortcut for the home headers → the stats screen. Shows the streak when
+ *  there is one, otherwise a plain "stats" label. */
+export function StatsPill({ streak }: { streak: number }) {
+  return (
+    <a className="streak-pill" href="#/learn-stats" aria-label="Stats">
+      {streak > 0 && <span className="streak-dot" />}
+      {streak > 0 ? `${streak}d` : 'stats'}
+    </a>
+  )
+}
+
 /** Top-level Read | Learn section switcher, shared by both home screens. */
 export function SectionTabs({ active }: { active: 'read' | 'learn' }) {
   return (

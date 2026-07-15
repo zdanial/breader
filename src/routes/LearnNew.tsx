@@ -149,7 +149,7 @@ export default function LearnNew({ courseId }: { courseId?: string }) {
           <h2>2 · copy the prompt → your AI</h2>
           <p className="note">
             paste this into ChatGPT or Claude, then paste your source content where it says PASTE. the AI
-            will ask a few questions, then return JSON.
+            will ask a few questions, then propose an outline for you to approve, then return JSON.
           </p>
           <CopyBlock label="copy prompt" text={prompt} />
         </section>

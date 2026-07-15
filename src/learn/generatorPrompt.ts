@@ -54,13 +54,24 @@ ${opts.hasKnownWords ? '- The learner\'s KNOWN WORDS are pasted separately below
 
 You decide the shape: extend an existing course (reuse its exact course.id and the ids/indices of the units you touch) OR create a new course with a new stable id like "${opts.targetLang}-<topic>". Output one JSON fragment per course you create or update; if several, I will save them together as a .zip.
 
-FIRST, before generating anything, ask me clarifying questions to confirm how to structure this — which existing course to extend vs. starting a new one, how much material warrants a unit vs a lesson, the level, scope, ordering, and anything ambiguous. DECIDE THE NUMBER OF UNITS AND LESSONS YOURSELF from the amount and nature of the content — do not use a fixed count. Only after I confirm, output the JSON.
+WORKFLOW — three gated steps. Do NOT jump ahead to the JSON:
+1. ASK — first, ask me clarifying questions to confirm scope: which existing course to extend vs. a new one, the level, how much of the source to cover, ordering, and anything ambiguous.
+2. OUTLINE — after I answer, propose an OUTLINE in plain text (NOT JSON): the course(s), and for each unit its title, the NEW words it introduces (with glosses), and a one-line summary of each lesson showing how those words get drilled and recycled. Then ask me to APPROVE or adjust the outline.
+3. GENERATE — ONLY after I approve the outline, output the JSON.
+Decide the number of units and lessons yourself from the amount and nature of the content — no fixed count — but follow the DENSITY rules below.
+
+DENSITY — build a LOT of practice, not a thin skim:
+- Introduce only ~8–12 NEW words per unit (a controlled vocabulary load) so there is room to drill each one hard.
+- Every new word must appear in ~6–8 exercises across its unit, CLIMBING a difficulty ladder rather than repeating one type: teach (meet it) → match (recognize) → choice (recognize among distractors) → blank (cued recall) → build (produce) → listen (hear + produce) → read (see it in real context).
+- SPACE the exposures: 2–3 touches in the lesson that introduces the word, the rest in LATER lessons of the same unit — do not cram them all into one lesson.
+- INTERLEAVE: every lesson mixes new words with words taught earlier in the unit, so earlier words keep getting recycled while new ones are introduced.
+- Expect ~5–8 lessons and ~60–90 exercises per unit — that volume is intended; err toward MORE practice.
 ${
   opts.hasKnownWords
-    ? '\nRECYCLE: build lessons that mostly REUSE the known words listed below, and introduce only a controlled number of NEW words. List every new word in the unit "glossary" so it enters the learner\'s word bank.\n'
+    ? '\nRECYCLE: also lean on the learner\'s KNOWN WORDS listed below — reuse them freely in sentences and distractors, and count only genuinely NEW words toward the 8–12 per-unit budget. List every new word in the unit "glossary" so it enters the learner\'s word bank.\n'
     : ''
 }
-Requirements: use stable unique ids and correct indices; include a unit "glossary" of the vocabulary used; add "teach" screens before drilling new concepts; make wrong choices plausible near-misses; keep sentences short and level-appropriate; include natural base-language translations.`
+Requirements: use stable unique ids and correct indices; include a unit "glossary" listing every new word with its gloss; add "teach" screens before drilling new concepts; make wrong choices plausible near-misses; keep sentences short and level-appropriate; include natural base-language translations.`
 }
 
 /** A human summary of every course/unit/lesson in a language, for the prompt. */

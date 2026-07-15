@@ -43,6 +43,23 @@ export async function reviewDueCount(lang: string, scope?: ReviewScope): Promise
   return due.filter((v) => glossed(v) && inScope(v, scope)).length
 }
 
+/** Word-bank summary for the Learn-home card: tracked/due counts + a few preview
+ *  surfaces, using the same reviewable filter + due-first ordering as the review
+ *  session so the card can't diverge from what Review actually drills. */
+export async function wordBankSummary(
+  lang: string,
+  previewN = 4,
+): Promise<{ tracked: number; due: number; preview: string[] }> {
+  const words = (await trackedWords(lang)).filter(glossed)
+  const now = Date.now()
+  const due = words.filter((v) => (v.dueAt ?? Infinity) <= now).length
+  const preview = [...words]
+    .sort((a, b) => (a.dueAt ?? Infinity) - (b.dueAt ?? Infinity)) // due first, then soonest
+    .slice(0, previewN)
+    .map((v) => v.surface ?? v.lemma)
+  return { tracked: words.length, due, preview }
+}
+
 /**
  * Build a review session. Pulls due words first (honest SM-2 grading via
  * `choice`), pads toward `size` with the most-overdue tracked words, and — for

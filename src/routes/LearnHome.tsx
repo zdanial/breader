@@ -6,8 +6,7 @@ import { importLearnFile } from '../learn/importCourse'
 import { deleteCourse, resetCourseProgress } from '../learn/ops'
 import { computeStreak } from '../learn/progress'
 import { navigate } from '../router'
-import { isWordEntry, trackedWords } from '../vocab/bank'
-import { dirFor } from '../vocab/review'
+import { dirFor, wordBankSummary } from '../vocab/review'
 import { Button, LanguageBar, Rule, SectionTabs, Sheet, Wordmark } from '../ui'
 
 const langName = (code: string) =>
@@ -26,22 +25,11 @@ export default function LearnHome() {
   const stats = useLiveQuery(() => db.learnStats.get('singleton'), [])
   const { langs, active, setActive, addLanguage } = useLanguages()
 
-  // word-bank review counts + a few preview words for the active language
-  const review = useLiveQuery(async () => {
-    if (!active) return { tracked: 0, due: 0, words: [] as string[] }
-    const words = (await trackedWords(active)).filter(isWordEntry)
-    const now = Date.now()
-    const due = words.filter((v) => (v.dueAt ?? Infinity) <= now)
-    const rest = words.filter((v) => (v.dueAt ?? Infinity) > now)
-    // prefer due (soonest first), then most-recently-seen, for the preview row
-    const preview = [
-      ...due.sort((a, b) => (a.dueAt ?? 0) - (b.dueAt ?? 0)),
-      ...rest.sort((a, b) => (b.lastSeenAt ?? 0) - (a.lastSeenAt ?? 0)),
-    ]
-      .slice(0, 4)
-      .map((v) => v.surface ?? v.lemma)
-    return { tracked: words.length, due: due.length, words: preview }
-  }, [active])
+  // word-bank summary (counts + preview surfaces) for the active language
+  const review = useLiveQuery(
+    () => (active ? wordBankSummary(active) : Promise.resolve({ tracked: 0, due: 0, preview: [] })),
+    [active],
+  )
 
   const fileRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
@@ -111,32 +99,20 @@ export default function LearnHome() {
           <>
             {/* word-bank card for the active language: card body → review, tiles → saved */}
             {review && review.tracked > 0 && active && (
-              <div
-                className="wordbank-card"
-                dir="ltr"
-                role="button"
-                tabIndex={0}
-                onClick={() => navigate(`/review/${active}`)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') navigate(`/review/${active}`)
-                }}
-              >
+              <div className="wordbank-card" dir="ltr">
                 <div className="wordbank-top">
                   <span className="wordbank-eyebrow">word bank · {langName(active).toLowerCase()}</span>
-                  <span className="wordbank-action">
+                  <button className="wordbank-action" onClick={() => navigate(`/review/${active}`)}>
                     {review.due > 0 ? `review ${review.due} due →` : 'practice →'}
-                  </span>
+                  </button>
                 </div>
-                {review.words.length > 0 && (
+                {review.preview.length > 0 && (
                   <div className="wordbank-preview" dir={dirFor(active)}>
-                    {review.words.map((surface, i) => (
+                    {review.preview.map((surface) => (
                       <button
-                        key={i}
+                        key={surface}
                         className="tile wordbank-tile"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          navigate('/saved')
-                        }}
+                        onClick={() => navigate('/saved')}
                       >
                         {surface}
                       </button>
